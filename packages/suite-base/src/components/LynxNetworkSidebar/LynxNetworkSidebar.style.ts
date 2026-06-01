@@ -11,6 +11,7 @@ export const useStyles = makeStyles()((theme) => ({
   },
   tree: {
     flex: 1,
+    minHeight: 0,
     overflow: "auto",
     padding: theme.spacing(1),
     fontFamily: theme.typography.fontFamily,
@@ -67,10 +68,42 @@ export const useStyles = makeStyles()((theme) => ({
       color: theme.palette.success.main,
     },
   },
-  detail: {
+  detailSection: {
+    display: "flex",
+    flexDirection: "column",
+    flexShrink: 0,
+    overflow: "hidden",
+    minHeight: 0,
+  },
+  resizeHandle: {
+    flexShrink: 0,
+    height: 8,
+    cursor: "ns-resize",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     borderTop: `1px solid ${theme.palette.divider}`,
+    backgroundColor: theme.palette.background.paper,
+    "&:hover": {
+      backgroundColor: theme.palette.action.hover,
+    },
+    "&:hover .MuiSvgIcon-root": {
+      opacity: 1,
+    },
+  },
+  resizeIcon: {
+    fontSize: "1rem",
+    opacity: 0.3,
+    transition: theme.transitions.create("opacity", {
+      duration: theme.transitions.duration.short,
+    }),
+    transform: "rotate(90deg)",
+    color: theme.palette.text.secondary,
+  },
+  detail: {
+    flex: 1,
+    minHeight: 0,
     padding: theme.spacing(1),
-    maxHeight: "40%",
     overflow: "auto",
     fontSize: theme.typography.caption.fontSize,
   },

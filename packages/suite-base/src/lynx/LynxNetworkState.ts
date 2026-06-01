@@ -106,7 +106,7 @@ export class LynxNetworkStateTracker {
     if (ref == undefined) {
       return false;
     }
-    const channelAbout = msg.payload as LynxChannelAbout;
+    const channelAbout = msg.payload as unknown as LynxChannelAbout;
     if (channelAbout.lynxType !== "Channel") {
       return false;
     }

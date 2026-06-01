@@ -13,7 +13,7 @@ function readEndpointPayloadSchema(endpoint: LynxEndpointAbout | undefined): Jso
   if (schema != undefined && schema != null) {
     return schema;
   }
-  const alt = (endpoint as Record<string, unknown>).payloadSchema;
+  const alt = (endpoint as unknown as Record<string, unknown>).payloadSchema;
   if (typeof alt === "object" && alt != null) {
     return alt as JsonSchema;
   }

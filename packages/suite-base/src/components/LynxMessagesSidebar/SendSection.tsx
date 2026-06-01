@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
+import type { AutocompleteRenderInputParams } from "@mui/material/Autocomplete";
 import {
   Autocomplete,
   Button,
@@ -51,6 +52,11 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
   const sendEndpoints = useMemo(
     () => lookupEndpointsForBase(index, target.trim(), "send"),
     [index, target],
+  );
+
+  const endpointOptions = useMemo(
+    () => sendEndpoints.map((e) => e.suffix),
+    [sendEndpoints],
   );
 
   const selectedEndpoint: LynxEndpointRef | undefined = useMemo(() => {
@@ -123,6 +129,42 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
     onSend(Date.now());
   }, [mqtt, targetValid, endpoint, target, formData, onSend]);
 
+  const handleTargetInputChange = useCallback((_e: React.SyntheticEvent, value: string) => {
+    setTarget(value);
+    setEndpoint("");
+    setJsonCustomized(false);
+  }, []);
+
+  const handleTargetChange = useCallback((_e: React.SyntheticEvent, value: string | null) => {
+    setTarget(value ?? "");
+    setEndpoint("");
+    setJsonCustomized(false);
+  }, []);
+
+  const handleEndpointInputChange = useCallback((_e: React.SyntheticEvent, value: string) => {
+    setEndpoint(value);
+    setJsonCustomized(false);
+  }, []);
+
+  const handleEndpointChange = useCallback((_e: React.SyntheticEvent, value: string | null) => {
+    setEndpoint(value ?? "");
+    setJsonCustomized(false);
+  }, []);
+
+  const renderTargetInput = useCallback(
+    (params: AutocompleteRenderInputParams) => (
+      <TextField {...params} label="Component" placeholder="serviceId or serviceId/channelId" />
+    ),
+    [],
+  );
+
+  const renderEndpointInput = useCallback(
+    (params: AutocompleteRenderInputParams) => (
+      <TextField {...params} label="Query / command" placeholder="?/About, !/Poll, …" />
+    ),
+    [],
+  );
+
   return (
     <section className={classes.section}>
       <Typography variant="subtitle2" className={classes.sectionTitle}>
@@ -134,38 +176,20 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
         size="small"
         options={baseOptions}
         value={target}
-        onInputChange={(_e, value) => {
-          setTarget(value);
-          setEndpoint("");
-          setJsonCustomized(false);
-        }}
-        onChange={(_e, value) => {
-          setTarget(value ?? "");
-          setEndpoint("");
-          setJsonCustomized(false);
-        }}
-        renderInput={(params) => (
-          <TextField {...params} label="Component" placeholder="serviceId or serviceId/channelId" />
-        )}
+        onInputChange={handleTargetInputChange}
+        onChange={handleTargetChange}
+        renderInput={renderTargetInput}
       />
 
       <Autocomplete
         freeSolo
         size="small"
         disabled={!targetValid}
-        options={sendEndpoints.map((e) => e.suffix)}
+        options={endpointOptions}
         value={endpoint}
-        onInputChange={(_e, value) => {
-          setEndpoint(value);
-          setJsonCustomized(false);
-        }}
-        onChange={(_e, value) => {
-          setEndpoint(value ?? "");
-          setJsonCustomized(false);
-        }}
-        renderInput={(params) => (
-          <TextField {...params} label="Query / command" placeholder="?/About, !/Poll, …" />
-        )}
+        onInputChange={handleEndpointInputChange}
+        onChange={handleEndpointChange}
+        renderInput={renderEndpointInput}
       />
 
       {hasSchema && selectedEndpoint != undefined && (

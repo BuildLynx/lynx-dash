@@ -2,7 +2,7 @@
 
 import Form from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
-import { useMemo } from "react";
+import { memo, useCallback, useMemo } from "react";
 
 import type { JsonSchema } from "@lichtblick/suite-base/lynx/types";
 
@@ -14,7 +14,7 @@ import type { JsonSchema } from "@lichtblick/suite-base/lynx/types";
  * RJSF does not support.
  */
 function normalizeSchema(raw: JsonSchema): JsonSchema {
-  const clone = JSON.parse(JSON.stringify(raw)) as Record<string, unknown>;
+  const clone = JSON.parse(JSON.stringify(raw) as string) as Record<string, unknown>;
 
   function normalizeTypeField(obj: Record<string, unknown>): void {
     if (Array.isArray(obj.type)) {
@@ -46,10 +46,19 @@ export type SchemaFormProps = {
   onChange: (data: Record<string, unknown>) => void;
 };
 
-export function SchemaForm(props: SchemaFormProps): React.JSX.Element {
+function SchemaFormComponent(props: SchemaFormProps): React.JSX.Element {
   const { schema, formData, onChange } = props;
 
   const normalizedSchema = useMemo(() => normalizeSchema(schema), [schema]);
+
+  const handleChange = useCallback(
+    (e: { formData?: unknown }) => {
+      if (e.formData != undefined && typeof e.formData === "object" && !Array.isArray(e.formData)) {
+        onChange(e.formData as Record<string, unknown>);
+      }
+    },
+    [onChange],
+  );
 
   return (
     <Form
@@ -58,14 +67,12 @@ export function SchemaForm(props: SchemaFormProps): React.JSX.Element {
       validator={validator}
       liveValidate={false}
       omitExtraData
-      onChange={(e) => {
-        if (e.formData != undefined && typeof e.formData === "object" && !Array.isArray(e.formData)) {
-          onChange(e.formData as Record<string, unknown>);
-        }
-      }}
+      onChange={handleChange}
     >
       {/* Hide default submit button — parent SendSection has its own */}
       <></>
     </Form>
   );
 }
+
+export const SchemaForm = memo(SchemaFormComponent);

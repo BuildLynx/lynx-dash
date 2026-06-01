@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import { Autocomplete, TextField, Typography } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import type { AutocompleteRenderInputParams } from "@mui/material/Autocomplete";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { JsonPayloadEditor } from "@lichtblick/suite-base/components/LynxMessagesSidebar/JsonPayloadEditor";
 import { buildTopic } from "@lichtblick/suite-base/components/LynxMessagesSidebar/lynxMessagesUtils";
@@ -13,12 +14,23 @@ import { useLynxRuntimeStore } from "@lichtblick/suite-base/lynx/lynxRuntimeStor
 
 import { useStyles } from "./LynxMessagesSidebar.style";
 
+const READ_ONLY_INPUT_SLOT_PROPS = { input: { readOnly: true } } as const;
+const RECEIVE_LOG_SX = {
+  fontFamily: "monospace",
+  whiteSpace: "pre-wrap",
+  userSelect: "text",
+} as const;
+const NO_OP = (): void => {};
+
 export type ReceiveSectionProps = {
   lastSendAt: number | undefined;
 };
 
 export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
   const { lastSendAt } = props;
+  const lastSendAtRef = useRef(lastSendAt);
+  lastSendAtRef.current = lastSendAt;
+
   const { classes } = useStyles();
   const mqtt = useLynxRuntimeStore((s) => s.mqtt);
   const index = useLynxComponentIndex();
@@ -36,9 +48,19 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
     [index, target],
   );
 
+  const endpointOptions = useMemo(
+    () => receiveEndpoints.map((e) => e.suffix),
+    [receiveEndpoints],
+  );
+
   const targetValid = target.trim() !== "";
   const subscribeTopic =
     targetValid && endpoint.trim() !== "" ? buildTopic(target.trim(), endpoint.trim()) : undefined;
+
+  const resetReceiveLog = useCallback(() => {
+    setLogText("");
+    setRoundTripMs(undefined);
+  }, []);
 
   useEffect(() => {
     if (!targetValid) {
@@ -61,7 +83,8 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
           ? (raw as Record<string, unknown>)
           : { value: raw };
 
-      const roundTrip = lastSendAt != undefined ? receivedAt - lastSendAt : undefined;
+      const sendAt = lastSendAtRef.current;
+      const roundTrip = sendAt != undefined ? receivedAt - sendAt : undefined;
 
       setDisplayPayload(payload);
       if (roundTrip != undefined) {
@@ -73,7 +96,55 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
     });
 
     return unsubscribe;
-  }, [mqtt, subscribeTopic, lastSendAt]);
+  }, [mqtt, subscribeTopic]);
+
+  const handleTargetInputChange = useCallback(
+    (_e: React.SyntheticEvent, value: string) => {
+      setTarget(value);
+      setEndpoint("");
+      resetReceiveLog();
+    },
+    [resetReceiveLog],
+  );
+
+  const handleTargetChange = useCallback(
+    (_e: React.SyntheticEvent, value: string | null) => {
+      setTarget(value ?? "");
+      setEndpoint("");
+      resetReceiveLog();
+    },
+    [resetReceiveLog],
+  );
+
+  const handleEndpointInputChange = useCallback(
+    (_e: React.SyntheticEvent, value: string) => {
+      setEndpoint(value);
+      resetReceiveLog();
+    },
+    [resetReceiveLog],
+  );
+
+  const handleEndpointChange = useCallback(
+    (_e: React.SyntheticEvent, value: string | null) => {
+      setEndpoint(value ?? "");
+      resetReceiveLog();
+    },
+    [resetReceiveLog],
+  );
+
+  const renderTargetInput = useCallback(
+    (params: AutocompleteRenderInputParams) => (
+      <TextField {...params} label="Component" placeholder="serviceId or serviceId/channelId" />
+    ),
+    [],
+  );
+
+  const renderEndpointInput = useCallback(
+    (params: AutocompleteRenderInputParams) => (
+      <TextField {...params} label="Receive endpoint" placeholder="<, @/About, @/Notice, …" />
+    ),
+    [],
+  );
 
   return (
     <section className={classes.section}>
@@ -86,49 +157,27 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
         size="small"
         options={baseOptions}
         value={target}
-        onInputChange={(_e, value) => {
-          setTarget(value);
-          setEndpoint("");
-          setLogText("");
-          setRoundTripMs(undefined);
-        }}
-        onChange={(_e, value) => {
-          setTarget(value ?? "");
-          setEndpoint("");
-          setLogText("");
-          setRoundTripMs(undefined);
-        }}
-        renderInput={(params) => (
-          <TextField {...params} label="Component" placeholder="serviceId or serviceId/channelId" />
-        )}
+        onInputChange={handleTargetInputChange}
+        onChange={handleTargetChange}
+        renderInput={renderTargetInput}
       />
 
       <Autocomplete
         freeSolo
         size="small"
         disabled={!targetValid}
-        options={receiveEndpoints.map((e) => e.suffix)}
+        options={endpointOptions}
         value={endpoint}
-        onInputChange={(_e, value) => {
-          setEndpoint(value);
-          setLogText("");
-          setRoundTripMs(undefined);
-        }}
-        onChange={(_e, value) => {
-          setEndpoint(value ?? "");
-          setLogText("");
-          setRoundTripMs(undefined);
-        }}
-        renderInput={(params) => (
-          <TextField {...params} label="Receive endpoint" placeholder="<, @/About, @/Notice, …" />
-        )}
+        onInputChange={handleEndpointInputChange}
+        onChange={handleEndpointChange}
+        renderInput={renderEndpointInput}
       />
 
       <TextField
         size="small"
         label="Time since send (ms)"
         value={roundTripMs != undefined ? String(roundTripMs) : "—"}
-        slotProps={{ input: { readOnly: true } }}
+        slotProps={READ_ONLY_INPUT_SLOT_PROPS}
         fullWidth
       />
 
@@ -141,15 +190,15 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
             component="pre"
             variant="caption"
             className={classes.receiveLog}
-            sx={{ fontFamily: "monospace", whiteSpace: "pre-wrap", userSelect: "text" }}
+            sx={RECEIVE_LOG_SX}
           >
             {logText}
           </Typography>
         ) : (
           <JsonPayloadEditor
             value={displayPayload}
-            onChange={() => {}}
-            onCustomizedChange={() => {}}
+            onChange={NO_OP}
+            onCustomizedChange={NO_OP}
             readOnly
           />
         )}
