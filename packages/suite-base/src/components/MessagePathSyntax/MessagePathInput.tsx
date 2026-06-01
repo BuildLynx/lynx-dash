@@ -453,9 +453,30 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   const usesUnsupportedMathModifier =
     (supportsMathModifiers == undefined || !supportsMathModifiers) && path.includes(".@");
 
+  const schemaDefinitionCount =
+    topic?.schemaName != undefined
+      ? (datatypes.get(topic.schemaName)?.definitions.length ?? 0)
+      : 0;
+
+  const missingNamedField =
+    schemaDefinitionCount > 0 &&
+    structureTraversalResult?.valid === false &&
+    structureTraversalResult.msgPathPart?.type === "name" &&
+    structureTraversalResult.msgPathPart.name.length > 0;
+
+  const hasStructureTraversalError =
+    structureTraversalResult?.valid === false &&
+    structureTraversalResult.msgPathPart?.type !== "name";
+
   const hasError =
     usesUnsupportedMathModifier ||
-    (autocompleteType != undefined && !disableAutocomplete && path.length > 0);
+    (!disableAutocomplete &&
+      path.length > 0 &&
+      (rosPath == undefined ||
+        (autocompleteType === "topicName" && topic == undefined) ||
+        invalidGlobalVariablesVariable != undefined ||
+        missingNamedField ||
+        hasStructureTraversalError));
 
   return (
     <Autocomplete

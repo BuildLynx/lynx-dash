@@ -108,7 +108,8 @@ export const Autocomplete = React.forwardRef(function Autocomplete(
     return filterText ? fzf.find(filterText) : fzfUnfiltered;
   }, [filterText, fzf, fzfUnfiltered]);
 
-  const hasError = props.hasError ?? (autocompleteItems.length === 0 && value?.length !== 0);
+  const fallbackError = autocompleteItems.length === 0 && value?.length !== 0;
+  const hasError = props.hasError ?? fallbackError;
 
   const setSelectionRange = useCallback((selectionStart: number, selectionEnd: number): void => {
     inputRef.current?.focus();
@@ -177,17 +178,19 @@ export const Autocomplete = React.forwardRef(function Autocomplete(
       openOnFocus
       options={autocompleteItems}
       readOnly={readOnly}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          variant={variant}
-          inputRef={inputRef}
-          data-testid="autocomplete-textfield"
-          placeholder={placeholder}
-          className={cx({ [classes.inputError]: hasError })}
-          size="small"
-        />
-      )}
+      renderInput={(params) => {
+        return (
+          <TextField
+            {...params}
+            variant={variant}
+            inputRef={inputRef}
+            data-testid="autocomplete-textfield"
+            placeholder={placeholder}
+            className={cx({ [classes.inputError]: hasError })}
+            size="small"
+          />
+        );
+      }}
       renderOption={(optProps, option: FzfResultItem, state) => {
         // The return values of renderOption are passed as the _child_ argument to the ListboxComponent.
         // Our ReactWindowListboxAdapter expects a tuple for each item in the list and will itself manage

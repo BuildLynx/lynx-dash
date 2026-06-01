@@ -11,6 +11,7 @@ import {
   channelOutputTopic,
   channelStopTopic,
   channelStreamTopic,
+  LYNX_CHANNEL_ABOUT_MONITOR_TOPIC,
   type LynxChannelOutput,
   type LynxPollRequest,
   type LynxStreamRequest,
@@ -69,6 +70,7 @@ export class LynxMqttManager {
     this.#connectionState = "connected";
     this.#mqtt.subscribe(`${serviceId}/#`, 0);
     this.#mqtt.subscribe("+/@/About", 0);
+    this.#mqtt.subscribe(LYNX_CHANNEL_ABOUT_MONITOR_TOPIC, 0);
   }
 
   public disconnect(): void {

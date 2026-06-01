@@ -735,5 +735,25 @@ describe("traverseStructure", () => {
       },
       structureItem: messagePathStructures(datatypes)["pose_msgs/SomePose"],
     });
+    expect(
+      traverseStructure(structure, [
+        { type: "name", name: "some_pose", repr: "some_pose" },
+        { type: "name", name: "nonexistent_field", repr: "nonexistent_field" },
+      ]),
+    ).toEqual({
+      valid: false,
+      msgPathPart: { type: "name", name: "nonexistent_field", repr: "nonexistent_field" },
+      structureItem: structure?.nextByName.some_pose,
+    });
+    expect(
+      traverseStructure(structure, [
+        { type: "name", name: "some_pose", repr: "some_pose" },
+        { type: "name", name: "", repr: "" },
+      ]),
+    ).toEqual({
+      valid: false,
+      msgPathPart: { type: "name", name: "", repr: "" },
+      structureItem: structure?.nextByName.some_pose,
+    });
   });
 });

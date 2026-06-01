@@ -536,6 +536,39 @@ describe("parseRosPath", () => {
     });
   });
 
+  it("parses Lynx protocol topic paths", () => {
+    expect(parseMessagePath("svc/ch/<.voltage")).toEqual({
+      topicName: "svc/ch/<",
+      topicNameRepr: "svc/ch/<",
+      messagePath: [{ type: "name", name: "voltage", repr: "voltage" }],
+      modifier: MISSING,
+    });
+    expect(parseMessagePath("svc/ch/<")).toEqual({
+      topicName: "svc/ch/<",
+      topicNameRepr: "svc/ch/<",
+      messagePath: [],
+      modifier: MISSING,
+    });
+    expect(parseMessagePath("svc/@/About")).toEqual({
+      topicName: "svc/@/About",
+      topicNameRepr: "svc/@/About",
+      messagePath: [],
+      modifier: MISSING,
+    });
+    expect(parseMessagePath("svc/ch/!/Stream")).toEqual({
+      topicName: "svc/ch/!/Stream",
+      topicNameRepr: "svc/ch/!/Stream",
+      messagePath: [],
+      modifier: MISSING,
+    });
+    expect(parseMessagePath("svc/ch/?")).toEqual({
+      topicName: "svc/ch/?",
+      topicNameRepr: "svc/ch/?",
+      messagePath: [],
+      modifier: MISSING,
+    });
+  });
+
   it("parses simple valid strings", () => {
     expect(parseMessagePath("blah")).toBeDefined();
     expect(parseMessagePath("100")).toBeDefined();

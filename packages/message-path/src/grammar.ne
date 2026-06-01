@@ -22,6 +22,10 @@ main -> topicName messagePath:? modifier:?
 id -> [a-zA-Z0-9_-]:+
   {% (d) => d[0].join("") %}
 
+# Topic segment: like id but also allows Lynx protocol characters (<, >, !, ?, @).
+topicSegment -> [a-zA-Z0-9_<>!?@-]:+
+  {% (d) => d[0].join("") %}
+
 # Integer.
 integer
    -> "-":? [0-9]:+  {% (d) => ({ value: BigInt((d[0] ?? "") + d[1].join("")), repr: (d[0] ?? "") + d[1].join("") }) %}
@@ -52,7 +56,7 @@ comparisonOperator -> "==" {% () => "==" %}
 topicName -> slashID:+     {% (d) => ({ value: d[0].join(""), repr: d[0].join("") }) %}
            | id slashID:*  {% (d) => ({ value: d[0] + d[1].join(""), repr: d[0] + d[1].join("") }) %}
            | quotedString  {% id %}
-slashID -> "/" id:?
+slashID -> "/" topicSegment:?
   {% (d) => d.join("") %}
 
 quotedString ->

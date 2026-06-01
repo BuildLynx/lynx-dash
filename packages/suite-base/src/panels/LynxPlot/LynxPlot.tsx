@@ -24,7 +24,7 @@ import { useLynxRuntimeStore } from "@lichtblick/suite-base/lynx/lynxRuntimeStor
 import * as PanelAPI from "@lichtblick/suite-base/PanelAPI";
 import useLynxPlotPanelSettings from "@lichtblick/suite-base/panels/LynxPlot/hooks/useLynxPlotPanelSettings";
 import {
-  applyLynxPlotYBounds,
+  computeLynxPlotSchemaYBounds,
   getChannelTitleForPath,
   isLynxSchemaTopic,
 } from "@lichtblick/suite-base/panels/LynxPlot/utils/lynxPlotUtils";
@@ -66,13 +66,31 @@ const LynxPlot = (props: PlotProps): React.JSX.Element => {
     [topics],
   );
 
+  const schemaBounds = useMemo(() => {
+    return computeLynxPlotSchemaYBounds(config.paths, networkState);
+    // networkStateRoot is intentionally included to recompute when About arrives,
+    // but computeLynxPlotSchemaYBounds is cheap and returns structurally-equal results
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.paths, networkState, networkStateRoot]);
+
+  const stableSchemaBounds = useRef(schemaBounds);
+  if (
+    schemaBounds?.min !== stableSchemaBounds.current?.min ||
+    schemaBounds?.max !== stableSchemaBounds.current?.max
+  ) {
+    stableSchemaBounds.current = schemaBounds;
+  }
+
   const plotConfig = useMemo(() => {
-    const yBounds = applyLynxPlotYBounds(config, networkState);
-    if (yBounds.minYValue === config.minYValue && yBounds.maxYValue === config.maxYValue) {
+    const bounds = stableSchemaBounds.current;
+    const minYValue = config.minYValue ?? bounds?.min;
+    const maxYValue = config.maxYValue ?? bounds?.max;
+    const changed = minYValue !== config.minYValue || maxYValue !== config.maxYValue;
+    if (!changed) {
       return config;
     }
-    return { ...config, ...yBounds };
-  }, [config, networkState, networkStateRoot]);
+    return { ...config, minYValue, maxYValue };
+  }, [config, stableSchemaBounds.current]);
 
   const [canReset, setCanReset] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<TooltipStateSetter>();

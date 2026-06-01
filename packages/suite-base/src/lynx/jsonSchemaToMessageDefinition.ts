@@ -2,8 +2,23 @@
 
 import { MessageDefinitionField } from "@lichtblick/message-definition";
 
-import type { JsonSchema, LynxChannelAbout } from "@lichtblick/suite-base/lynx/types";
+import type { JsonSchema, LynxChannelAbout, LynxEndpointAbout } from "@lichtblick/suite-base/lynx/types";
 import type { OptionalMessageDefinition } from "@lichtblick/suite-base/types/RosDatatypes";
+
+function readEndpointPayloadSchema(endpoint: LynxEndpointAbout | undefined): JsonSchema | undefined {
+  if (endpoint == undefined) {
+    return undefined;
+  }
+  const schema = endpoint.payload_schema;
+  if (schema != undefined && schema != null) {
+    return schema;
+  }
+  const alt = (endpoint as Record<string, unknown>).payloadSchema;
+  if (typeof alt === "object" && alt != null) {
+    return alt as JsonSchema;
+  }
+  return undefined;
+}
 
 export function extractChannelOutputPayloadSchema(
   serviceId: string,
@@ -16,23 +31,75 @@ export function extractChannelOutputPayloadSchema(
   }
 
   const fullKey = `${serviceId}/${channelId}/<`;
-  const direct = endpoints[fullKey]?.payload_schema;
-  if (direct != undefined && direct != null) {
+  const direct = readEndpointPayloadSchema(endpoints[fullKey]);
+  if (direct != undefined) {
     return direct;
   }
 
-  const short = endpoints["<"]?.payload_schema;
-  if (short != undefined && short != null) {
+  const short = readEndpointPayloadSchema(endpoints["<"]);
+  if (short != undefined) {
     return short;
   }
 
   for (const [key, endpoint] of Object.entries(endpoints)) {
-    if (key.endsWith("/<") && endpoint.payload_schema != undefined && endpoint.payload_schema != null) {
-      return endpoint.payload_schema;
+    if (key.endsWith("/<")) {
+      const schema = readEndpointPayloadSchema(endpoint);
+      if (schema != undefined) {
+        return schema;
+      }
     }
   }
 
   return undefined;
+}
+
+function valueToJsonSchemaField(value: unknown): JsonSchema | undefined {
+  if (value == null) {
+    return undefined;
+  }
+  if (typeof value === "boolean") {
+    return { type: "boolean" };
+  }
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? { type: "integer" } : { type: "number" };
+  }
+  if (typeof value === "string") {
+    return { type: "string" };
+  }
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const properties: Record<string, JsonSchema> = {};
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      const fieldSchema = valueToJsonSchemaField(nested);
+      if (fieldSchema != undefined) {
+        properties[key] = fieldSchema;
+      }
+    }
+    return { type: "object", properties };
+  }
+  return undefined;
+}
+
+/** Build a Lynx `<` endpoint payload_schema from a live `sample.data` object. */
+export function buildChannelPayloadSchemaFromData(data: Record<string, unknown>): JsonSchema {
+  const properties: Record<string, JsonSchema> = {};
+  for (const [key, value] of Object.entries(data)) {
+    const fieldSchema = valueToJsonSchemaField(value);
+    if (fieldSchema != undefined) {
+      properties[key] = fieldSchema;
+    }
+  }
+  return {
+    type: "array",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        s: { type: "integer" },
+        ns: { type: "integer" },
+        data: { type: "object", properties },
+      },
+    },
+  };
 }
 
 /** Navigate Lynx `<` endpoint payload_schema to channel `data.properties`. */

@@ -2,7 +2,7 @@
 
 import { Typography } from "@mui/material";
 
-import type { LynxChannelAbout } from "@lichtblick/suite-base/lynx/types";
+import { channelOutputTopic, type LynxChannelAbout } from "@lichtblick/suite-base/lynx/types";
 
 import { useStyles } from "./LynxNetworkSidebar.style";
 
@@ -42,7 +42,7 @@ export function ChannelDetailPanel(props: ChannelDetailPanelProps): React.JSX.El
         State: {channel.status?.state ?? "unknown"}
       </Typography>
       <Typography variant="caption" display="block">
-        Topic: {serviceId}/{channelId}
+        Topic: {channelOutputTopic(serviceId, channelId)}
       </Typography>
       {outputSchema != undefined && (
         <Typography

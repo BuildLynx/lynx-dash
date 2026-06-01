@@ -297,6 +297,9 @@ export const traverseStructure = (
         return { valid: false, msgPathPart, structureItem };
       }
       const next: MessagePathStructureItem | undefined = structureItem.nextByName[msgPathPart.name];
+      if (next == undefined) {
+        return { valid: false, msgPathPart, structureItem };
+      }
       structureItem = next;
     } else if (msgPathPart.type === "slice") {
       if (structureItem.structureType !== "array") {

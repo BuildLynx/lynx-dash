@@ -24,7 +24,7 @@ const grammarObj = Grammar.fromCompiled(grammar);
 /** Wrap topic name in double quotes if it contains special characters */
 export function quoteTopicNameIfNeeded(name: string): string {
   // Pattern should match `slashID` in grammar.ne
-  if (name.match(/^[a-zA-Z0-9_/-]+$/)) {
+  if (name.match(/^[a-zA-Z0-9_/<>!?@-]+$/)) {
     return name;
   }
   return `"${name.replace(/[\\"]/g, (char) => `\\${char}`)}"`;

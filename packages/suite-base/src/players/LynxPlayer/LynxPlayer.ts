@@ -9,13 +9,18 @@ import { LynxMqttManager } from "@lichtblick/suite-base/lynx/LynxMqttManager";
 import { LynxNetworkStateTracker } from "@lichtblick/suite-base/lynx/LynxNetworkState";
 import { LynxServiceIdentity } from "@lichtblick/suite-base/lynx/LynxServiceIdentity";
 import { resolveBrokerUrl } from "@lichtblick/suite-base/lynx/lynxConf";
-import { jsonSchemaToMessageDefs } from "@lichtblick/suite-base/lynx/jsonSchemaToMessageDefinition";
+import {
+  buildChannelPayloadSchemaFromData,
+  jsonSchemaToMessageDefs,
+} from "@lichtblick/suite-base/lynx/jsonSchemaToMessageDefinition";
 import { lynxRuntimeStore } from "@lichtblick/suite-base/lynx/lynxRuntimeStore";
 import {
   LYNX_ABOUT_MONITOR_TOPIC,
+  LYNX_CHANNEL_ABOUT_MONITOR_TOPIC,
   LYNX_CHANNEL_SCHEMA_NAME,
   lynxChannelSchemaName,
   parseLynxChannelTopic,
+  type JsonSchema,
   type LynxChannelSample,
 } from "@lichtblick/suite-base/lynx/types";
 import PlayerAlertManager from "@lichtblick/suite-base/players/PlayerAlertManager";
@@ -69,6 +74,8 @@ export default class LynxPlayer implements Player {
   #topicSchemaMap = new Map<string, string>();
   #topicStats = new Map<string, TopicStats>();
   #datatypes: RosDatatypes = new Map();
+  /** Schemas inferred from live `<` output when About omits payload_schema. */
+  #inferredPayloadSchemas = new Map<string, JsonSchema>();
   #parsedMessages: MessageEvent[] = [];
   #receivedBytes = 0;
   #requestedSubscriptions: SubscribePayload[] = [];
@@ -166,11 +173,13 @@ export default class LynxPlayer implements Player {
 
       await this.#mqtt.connect(brokerUrl, this.#serviceId);
 
-      this.#mqtt.addMessageHandler(LYNX_ABOUT_MONITOR_TOPIC, (msg) => {
+      const onAboutMessage = (msg: InboundMessage): void => {
         this.#networkState?.updateFromAboutMessage(msg);
         this.#rebuildTopics();
         void this.#emitState();
-      });
+      };
+      this.#mqtt.addMessageHandler(LYNX_ABOUT_MONITOR_TOPIC, onAboutMessage);
+      this.#mqtt.addMessageHandler(LYNX_CHANNEL_ABOUT_MONITOR_TOPIC, onAboutMessage);
 
       this.#serviceIdentity.register();
       this.#streamStartTime = fromMillis(Date.now());
@@ -201,6 +210,18 @@ export default class LynxPlayer implements Player {
     }
   }
 
+  #setDatatypesFromPayloadSchema(
+    datatypes: RosDatatypes,
+    schemaName: string,
+    payloadSchema: JsonSchema,
+  ): void {
+    const { definitions, nested } = jsonSchemaToMessageDefs(schemaName, payloadSchema);
+    datatypes.set(schemaName, { name: schemaName, definitions });
+    for (const [nestedName, nestedDef] of nested) {
+      datatypes.set(nestedName, nestedDef);
+    }
+  }
+
   #rebuildTopics(): void {
     if (!this.#networkState) {
       return;
@@ -215,12 +236,10 @@ export default class LynxPlayer implements Player {
       topics.push({ name: entry.topic, schemaName });
       topicSchemaMap.set(entry.topic, schemaName);
 
-      if (entry.payloadSchema != undefined) {
-        const { definitions, nested } = jsonSchemaToMessageDefs(schemaName, entry.payloadSchema);
-        datatypes.set(schemaName, { name: schemaName, definitions });
-        for (const [nestedName, nestedDef] of nested) {
-          datatypes.set(nestedName, nestedDef);
-        }
+      const payloadSchema =
+        entry.payloadSchema ?? this.#inferredPayloadSchemas.get(entry.topic);
+      if (payloadSchema != undefined) {
+        this.#setDatatypesFromPayloadSchema(datatypes, schemaName, payloadSchema);
       } else {
         datatypes.set(schemaName, { name: schemaName, definitions: [] });
       }
@@ -229,6 +248,26 @@ export default class LynxPlayer implements Player {
     this.#topics = topics;
     this.#topicSchemaMap = topicSchemaMap;
     this.#datatypes = datatypes;
+  }
+
+  #maybeInferDatatypesFromSample(topic: string, data: Record<string, unknown>): void {
+    const schemaName = this.#topicSchemaMap.get(topic);
+    if (schemaName == undefined) {
+      return;
+    }
+    const existing = this.#datatypes.get(schemaName);
+    if ((existing?.definitions.length ?? 0) > 0) {
+      return;
+    }
+
+    const payloadSchema = buildChannelPayloadSchemaFromData(data);
+    const { definitions } = jsonSchemaToMessageDefs(schemaName, payloadSchema);
+    if (definitions.length === 0) {
+      return;
+    }
+
+    this.#inferredPayloadSchemas.set(topic, payloadSchema);
+    this.#setDatatypesFromPayloadSchema(this.#datatypes, schemaName, payloadSchema);
   }
 
   #syncStreams(): void {
@@ -270,6 +309,10 @@ export default class LynxPlayer implements Player {
         );
 
     for (const sample of samples) {
+      if (sample.data != undefined && typeof sample.data === "object" && !Array.isArray(sample.data)) {
+        this.#maybeInferDatatypesFromSample(topic, sample.data as Record<string, unknown>);
+      }
+
       const receiveTime = sampleToReceiveTime(sample, baseTime);
       const messageEvent: MessageEvent = {
         topic,

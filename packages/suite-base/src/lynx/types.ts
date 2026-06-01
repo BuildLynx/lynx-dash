@@ -93,7 +93,7 @@ export interface LynxChannelTopicRef {
 
 export function parseLynxChannelTopic(topic: string): LynxChannelTopicRef | undefined {
   const parts = topic.split("/");
-  if (parts.length !== 2 || parts[0] === "" || parts[1] === "") {
+  if (parts.length !== 3 || parts[0] === "" || parts[1] === "" || parts[2] !== "<") {
     return undefined;
   }
   const serviceId = parts[0]!;
@@ -118,6 +118,9 @@ export function serviceAboutTopic(serviceId: string): string {
 }
 
 export const LYNX_ABOUT_MONITOR_TOPIC = "+/@/About";
+
+/** Per-channel About: `{serviceId}/{channelId}/@/About`. */
+export const LYNX_CHANNEL_ABOUT_MONITOR_TOPIC = "+/+/@/About";
 
 export const LYNX_CHANNEL_SCHEMA_NAME = "lynx/ChannelSample";
 
