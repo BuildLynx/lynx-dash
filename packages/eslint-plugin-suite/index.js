@@ -7,6 +7,7 @@
 
 module.exports = {
   rules: {
+    "license-header": require("./license-header"),
     "link-target": require("./link-target"),
     "lodash-ramda-imports": require("./lodash-ramda-imports"),
     "ramda-usage": require("./ramda-usage"),

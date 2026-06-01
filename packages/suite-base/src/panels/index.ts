@@ -1,4 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -104,6 +103,13 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     description: t("plotDescription"),
     thumbnail: plotThumbnail,
     module: async () => await import("./Plot"),
+  },
+  {
+    title: t("lynxPlot"),
+    type: "LynxPlot",
+    description: t("lynxPlotDescription"),
+    thumbnail: plotThumbnail,
+    module: async () => await import("./LynxPlot"),
   },
   {
     title: t("pieChart"),

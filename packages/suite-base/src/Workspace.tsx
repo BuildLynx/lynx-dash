@@ -1,4 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -34,6 +33,7 @@ import { EventsList } from "@lichtblick/suite-base/components/EventsList";
 import ExtensionsSettings from "@lichtblick/suite-base/components/ExtensionsSettings";
 import KeyListener from "@lichtblick/suite-base/components/KeyListener";
 import LayoutBrowser from "@lichtblick/suite-base/components/LayoutBrowser";
+import { LynxNetworkSidebar } from "@lichtblick/suite-base/components/LynxNetworkSidebar/LynxNetworkSidebar";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -379,6 +379,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     const items = new Map<LeftSidebarItemKey, SidebarItem>([
       ["panel-settings", { title: "Panel", component: PanelSettingsSidebar }],
       ["topics", { title: "Topics", component: TopicList }],
+      ["network", { title: "Lynx Network", component: LynxNetworkSidebar }],
       [
         "alerts",
         {

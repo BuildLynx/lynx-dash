@@ -1,4 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -26,6 +25,10 @@ export const panels = {
   parametersDescription: "Read and set parameters for a data source.",
   plot: "Plot",
   plotDescription: "Plot numerical values over time or other values.",
+  lynxPlot: "Lynx Plot",
+  lynxPlotDescription:
+    "Plot Lynx channel data with schema-based Y-axis bounds and Lynx timestamps.",
+  lynxPlotNonLynxTopicError: "Only Lynx channel topics (lynx/ schema) are supported.",
   pieChart: "Pie Chart",
   pieChartDescription: "Display a pie chart based on a continuous value.",
   publish: "Publish",

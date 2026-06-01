@@ -1,4 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -23,6 +22,8 @@ import LayoutManagerProvider from "@lichtblick/suite-base/providers/LayoutManage
 import { StudioLogsSettingsProvider } from "@lichtblick/suite-base/providers/StudioLogsSettingsProvider";
 import TimelineInteractionStateProvider from "@lichtblick/suite-base/providers/TimelineInteractionStateProvider";
 import UserProfileLocalStorageProvider from "@lichtblick/suite-base/providers/UserProfileLocalStorageProvider";
+
+import { LynxRuntimeProvider } from "@lichtblick/suite-base/lynx/LynxContext";
 
 import Workspace from "./Workspace";
 import DocumentTitleAdapter from "./components/DocumentTitleAdapter";
@@ -69,6 +70,7 @@ export function StudioApp(): React.JSX.Element {
     <ExtensionCatalogProvider loaders={extensionLoaders} />,
     <UserScriptStateProvider />,
     <PlayerManager playerSources={dataSources} />,
+    <LynxRuntimeProvider />,
     <EventsProvider />,
     /* eslint-enable react/jsx-key */
   ];

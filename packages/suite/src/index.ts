@@ -737,6 +737,8 @@ export type SettingsTreeFieldMessagePath = {
   validTypes?: string[];
   /** True if the input should allow math modifiers like @abs. */
   supportsMathModifiers?: boolean;
+  /** When set, only topics whose schemaName starts with this prefix appear in autocomplete. */
+  topicSchemaPrefix?: string;
 };
 
 export type SettingsTreeFieldNumber = {

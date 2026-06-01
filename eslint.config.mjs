@@ -1,4 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
 // SPDX-License-Identifier: MPL-2.0
 
 import { fixupPluginRules } from "@eslint/compat";
@@ -173,7 +172,8 @@ export default [
       // (kept as a placeholder for non-TypeScript files that may still need it)
     },
     rules: {
-      "@lichtblick/license-header": ["error", { licenseType: "MPL-2.0" }],
+      "@lichtblick/license-header": "off",
+      "@lichtblick/suite/license-header": ["error", { licenseType: "MPL-2.0" }],
       "@lichtblick/prefer-hash-private": "off",
       "@typescript-eslint/no-unnecessary-type-conversion": "off",
 
@@ -368,7 +368,7 @@ export default [
       "packages/suite-base/src/players/UserScriptPlayer/transformerWorker/typescript/userUtils/**",
     ],
     rules: {
-      "@lichtblick/license-header": "off",
+      "@lichtblick/suite/license-header": "off",
     },
   },
 ];

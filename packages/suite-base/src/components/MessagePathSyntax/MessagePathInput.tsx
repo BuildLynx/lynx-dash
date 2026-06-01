@@ -141,8 +141,16 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     inputStyle,
     disableAutocomplete = false,
     variant = "standard",
+    topicSchemaPrefix,
   } = props;
   const { classes } = useStyles();
+
+  const filteredTopics = useMemo(() => {
+    if (topicSchemaPrefix == undefined) {
+      return topics;
+    }
+    return topics.filter((topic) => topic.schemaName?.startsWith(topicSchemaPrefix) === true);
+  }, [topicSchemaPrefix, topics]);
 
   const structures = useMemo(() => messagePathStructures(datatypes), [datatypes]);
 
@@ -216,9 +224,23 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   const rosPath = useMemo(() => parseMessagePath(path), [path]);
 
   const topicsByName = useMemo(() => {
-    const map = new Map(topics.map((topic) => [topic.name, topic]));
+    const map = new Map(filteredTopics.map((topic) => [topic.name, topic]));
     return map;
-  }, [topics]);
+  }, [filteredTopics]);
+
+  const filteredStructureItemsByPath = useMemo(() => {
+    if (topicSchemaPrefix == undefined) {
+      return structureItemsByPath;
+    }
+    const result = new Map(structureItemsByPath);
+    for (const key of [...result.keys()]) {
+      const parsed = parseMessagePath(key);
+      if (parsed == undefined || !topicsByName.has(parsed.topicName)) {
+        result.delete(key);
+      }
+    }
+    return result;
+  }, [structureItemsByPath, topicSchemaPrefix, topicsByName]);
 
   const topic = useMemo(() => {
     if (!rosPath) {
@@ -257,13 +279,13 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   }, [globalVariables, rosPath, setGlobalVariables]);
 
   const topicNamesAutocompleteItems = useMemo(
-    () => topics.map(({ name }) => quoteTopicNameIfNeeded(name)),
-    [topics],
+    () => filteredTopics.map(({ name }) => quoteTopicNameIfNeeded(name)),
+    [filteredTopics],
   );
 
   const topicNamesAndFieldsAutocompleteItems = useMemo(() => {
     const topicCount = topicNamesAutocompleteItems.length;
-    const structureCount = structureItemsByPath.size;
+    const structureCount = filteredStructureItemsByPath.size;
     const result = new Array(topicCount + structureCount);
 
     for (let i = 0; i < topicCount; i++) {
@@ -271,11 +293,11 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     }
 
     let index = topicCount;
-    for (const key of structureItemsByPath.keys()) {
+    for (const key of filteredStructureItemsByPath.keys()) {
       result[index++] = key;
     }
     return result;
-  }, [structureItemsByPath, topicNamesAutocompleteItems]);
+  }, [filteredStructureItemsByPath, topicNamesAutocompleteItems]);
 
   const autocompleteType = useMemo(() => {
     if (!rosPath) {

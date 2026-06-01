@@ -54,6 +54,8 @@ export type MessagePathInputBaseProps = {
   readOnly?: boolean;
   prioritizedDatatype?: string;
   variant?: TextFieldProps["variant"];
+  /** When set, only topics whose schemaName starts with this prefix appear in autocomplete. */
+  topicSchemaPrefix?: string;
 };
 
 export type StructureTraversalResult = {

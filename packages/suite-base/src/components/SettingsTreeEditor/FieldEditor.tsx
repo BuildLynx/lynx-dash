@@ -242,6 +242,7 @@ function FieldInput({
           supportsMathModifiers={field.supportsMathModifiers}
           onChange={handleMessagePathChange}
           validTypes={field.validTypes}
+          topicSchemaPrefix={field.topicSchemaPrefix}
         />
       );
     case "select": {

@@ -299,7 +299,7 @@ Code quality is enforced through automated tooling. All checks run in CI and mus
 
 ### License Headers
 
-All source files must include the **MPL-2.0** license header. This is enforced by ESLint via the `@lichtblick/license-header` rule.
+All source files must include an **MPL-2.0** SPDX license identifier at the top of the file (`// SPDX-License-Identifier: MPL-2.0`). This is enforced by ESLint via `@lichtblick/suite/license-header` in `packages/eslint-plugin-suite`. A separate copyright line is not required.
 
 ### File Organization
 

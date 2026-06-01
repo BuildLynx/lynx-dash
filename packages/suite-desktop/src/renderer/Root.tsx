@@ -1,4 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -14,6 +13,7 @@ import {
   IAppConfiguration,
   IDataSourceFactory,
   IdbExtensionLoader,
+  LynxDataSourceFactory,
   McapLocalDataSourceFactory,
   OsContext,
   RemoteDataSourceFactory,
@@ -87,6 +87,7 @@ export default function Root(props: RootProps): React.JSX.Element {
     }
 
     const sources = [
+      new LynxDataSourceFactory(),
       new FoxgloveWebSocketDataSourceFactory(),
       new RosbridgeDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
