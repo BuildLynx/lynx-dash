@@ -39,6 +39,7 @@ export type LeftSidebarItemKey = (typeof LeftSidebarItemKeys)[number];
 export const RightSidebarItemKeys = [
   "events",
   "variables",
+  "lynx-messages",
   "logs-settings",
   "performance",
 ] as const;

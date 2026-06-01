@@ -7,6 +7,24 @@ import {
   type MessageHandler,
 } from "lynx-sdk-typescript";
 
+function mqttTopicMatch(pattern: string, topic: string): boolean {
+  const patParts = pattern.split("/");
+  const topParts = topic.split("/");
+
+  for (let i = 0; i < patParts.length; i++) {
+    if (patParts[i] === "#") {
+      return true;
+    }
+    if (patParts[i] === "+") {
+      continue;
+    }
+    if (i >= topParts.length || patParts[i] !== topParts[i]) {
+      return false;
+    }
+  }
+  return patParts.length === topParts.length;
+}
+
 import {
   channelOutputTopic,
   channelStopTopic,
@@ -25,6 +43,8 @@ export class LynxMqttManager {
   #connectionState: LynxMqttConnectionState = "disconnected";
   #connectionError: Error | undefined;
   #brokerUrl: string | undefined;
+  #receiveObservers = new Map<string, Set<(msg: InboundMessage) => void>>();
+  #messageObserverUnsub: (() => void) | undefined;
 
   public constructor(clientId: string) {
     this.#clientId = clientId;
@@ -74,9 +94,55 @@ export class LynxMqttManager {
   }
 
   public disconnect(): void {
+    this.#messageObserverUnsub?.();
+    this.#messageObserverUnsub = undefined;
+    this.#receiveObservers.clear();
     this.#mqtt.disconnect();
     this.#connectionState = "disconnected";
     this.#brokerUrl = undefined;
+  }
+
+  /**
+   * Subscribe to inbound messages on `topicFilter` without replacing LynxPlayer handlers.
+   * Returns an unsubscribe function.
+   */
+  public addReceiveObserver(
+    topicFilter: string,
+    listener: (msg: InboundMessage) => void,
+  ): () => void {
+    if (this.#messageObserverUnsub == undefined) {
+      this.#messageObserverUnsub = this.#mqtt.addMessageObserver((msg) => {
+        for (const [filter, listeners] of this.#receiveObservers) {
+          if (mqttTopicMatch(filter, msg.topic)) {
+            for (const fn of listeners) {
+              fn(msg);
+            }
+          }
+        }
+      });
+    }
+
+    if (this.#connectionState === "connected") {
+      this.#mqtt.subscribe(topicFilter, 0);
+    }
+
+    let listeners = this.#receiveObservers.get(topicFilter);
+    if (listeners == undefined) {
+      listeners = new Set();
+      this.#receiveObservers.set(topicFilter, listeners);
+    }
+    listeners.add(listener);
+
+    return () => {
+      const set = this.#receiveObservers.get(topicFilter);
+      if (set == undefined) {
+        return;
+      }
+      set.delete(listener);
+      if (set.size === 0) {
+        this.#receiveObservers.delete(topicFilter);
+      }
+    };
   }
 
   public addMessageHandler(topic: string, handler: MessageHandler): void {

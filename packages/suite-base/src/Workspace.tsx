@@ -33,6 +33,7 @@ import { EventsList } from "@lichtblick/suite-base/components/EventsList";
 import ExtensionsSettings from "@lichtblick/suite-base/components/ExtensionsSettings";
 import KeyListener from "@lichtblick/suite-base/components/KeyListener";
 import LayoutBrowser from "@lichtblick/suite-base/components/LayoutBrowser";
+import { LynxMessagesSidebar } from "@lichtblick/suite-base/components/LynxMessagesSidebar/LynxMessagesSidebar";
 import { LynxNetworkSidebar } from "@lichtblick/suite-base/components/LynxNetworkSidebar/LynxNetworkSidebar";
 import {
   MessagePipelineContext,
@@ -400,6 +401,13 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         {
           title: t("workspace:variables"),
           component: VariablesList,
+        },
+      ],
+      [
+        "lynx-messages",
+        {
+          title: "Lynx Messages",
+          component: LynxMessagesSidebar,
         },
       ],
     ]);
