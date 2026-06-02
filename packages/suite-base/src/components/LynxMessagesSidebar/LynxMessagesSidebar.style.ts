@@ -30,6 +30,13 @@ export const useStyles = makeStyles()((theme) => ({
     border: `1px solid ${theme.palette.divider}`,
     borderRadius: theme.shape.borderRadius,
     padding: theme.spacing(0.5),
+    backgroundColor: theme.palette.action.hover,
+    "& .MuiInputBase-root": {
+      backgroundColor: theme.palette.action.hover,
+    },
+    "& .MuiOutlinedInput-root": {
+      backgroundColor: theme.palette.action.hover,
+    },
   },
   jsonEditor: {
     minHeight: 120,

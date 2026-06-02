@@ -7,8 +7,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { JsonPayloadEditor } from "@lichtblick/suite-base/components/LynxMessagesSidebar/JsonPayloadEditor";
 import { buildTopic } from "@lichtblick/suite-base/components/LynxMessagesSidebar/lynxMessagesUtils";
 import {
+  type LynxComponentIndex,
   lookupEndpointsForBase,
-  useLynxComponentIndex,
 } from "@lichtblick/suite-base/components/LynxMessagesSidebar/useLynxComponentIndex";
 import { useLynxRuntimeStore } from "@lichtblick/suite-base/lynx/lynxRuntimeStore";
 
@@ -23,25 +23,31 @@ const RECEIVE_LOG_SX = {
 const NO_OP = (): void => {};
 
 export type ReceiveSectionProps = {
+  index: LynxComponentIndex;
+  target: string;
   lastSendAt: number | undefined;
 };
 
 export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
-  const { lastSendAt } = props;
+  const { index, target, lastSendAt } = props;
   const lastSendAtRef = useRef(lastSendAt);
   lastSendAtRef.current = lastSendAt;
 
   const { classes } = useStyles();
   const mqtt = useLynxRuntimeStore((s) => s.mqtt);
-  const index = useLynxComponentIndex();
 
-  const [target, setTarget] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [logText, setLogText] = useState("");
   const [displayPayload, setDisplayPayload] = useState<Record<string, unknown>>({});
   const [roundTripMs, setRoundTripMs] = useState<number | undefined>(undefined);
 
-  const baseOptions = useMemo(() => index.bases.map((b) => b.value), [index.bases]);
+  const [prevTarget, setPrevTarget] = useState(target);
+  if (prevTarget !== target) {
+    setPrevTarget(target);
+    setEndpoint("");
+    setLogText("");
+    setRoundTripMs(undefined);
+  }
 
   const receiveEndpoints = useMemo(
     () => lookupEndpointsForBase(index, target.trim(), "receive"),
@@ -49,7 +55,7 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
   );
 
   const endpointOptions = useMemo(
-    () => receiveEndpoints.map((e) => e.suffix),
+    () => receiveEndpoints.map((e) => e.suffix).sort((a, b) => a.localeCompare(b)),
     [receiveEndpoints],
   );
 
@@ -57,15 +63,11 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
   const subscribeTopic =
     targetValid && endpoint.trim() !== "" ? buildTopic(target.trim(), endpoint.trim()) : undefined;
 
-  const resetReceiveLog = useCallback(() => {
-    setLogText("");
-    setRoundTripMs(undefined);
-  }, []);
-
   useEffect(() => {
     if (!targetValid) {
-      setEndpoint("");
-    } else if (receiveEndpoints.length === 1 && endpoint === "") {
+      return;
+    }
+    if (receiveEndpoints.length === 1 && endpoint === "") {
       setEndpoint(receiveEndpoints[0]!.suffix);
     }
   }, [targetValid, receiveEndpoints, endpoint]);
@@ -98,46 +100,17 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
     return unsubscribe;
   }, [mqtt, subscribeTopic]);
 
-  const handleTargetInputChange = useCallback(
-    (_e: React.SyntheticEvent, value: string) => {
-      setTarget(value);
-      setEndpoint("");
-      resetReceiveLog();
-    },
-    [resetReceiveLog],
-  );
+  const handleEndpointInputChange = useCallback((_e: React.SyntheticEvent, value: string) => {
+    setEndpoint(value);
+    setLogText("");
+    setRoundTripMs(undefined);
+  }, []);
 
-  const handleTargetChange = useCallback(
-    (_e: React.SyntheticEvent, value: string | null) => {
-      setTarget(value ?? "");
-      setEndpoint("");
-      resetReceiveLog();
-    },
-    [resetReceiveLog],
-  );
-
-  const handleEndpointInputChange = useCallback(
-    (_e: React.SyntheticEvent, value: string) => {
-      setEndpoint(value);
-      resetReceiveLog();
-    },
-    [resetReceiveLog],
-  );
-
-  const handleEndpointChange = useCallback(
-    (_e: React.SyntheticEvent, value: string | null) => {
-      setEndpoint(value ?? "");
-      resetReceiveLog();
-    },
-    [resetReceiveLog],
-  );
-
-  const renderTargetInput = useCallback(
-    (params: AutocompleteRenderInputParams) => (
-      <TextField {...params} label="Component" placeholder="serviceId or serviceId/channelId" />
-    ),
-    [],
-  );
+  const handleEndpointChange = useCallback((_e: React.SyntheticEvent, value: string | null) => {
+    setEndpoint(value ?? "");
+    setLogText("");
+    setRoundTripMs(undefined);
+  }, []);
 
   const renderEndpointInput = useCallback(
     (params: AutocompleteRenderInputParams) => (
@@ -151,16 +124,6 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
       <Typography variant="subtitle2" className={classes.sectionTitle}>
         Receive
       </Typography>
-
-      <Autocomplete
-        freeSolo
-        size="small"
-        options={baseOptions}
-        value={target}
-        onInputChange={handleTargetInputChange}
-        onChange={handleTargetChange}
-        renderInput={renderTargetInput}
-      />
 
       <Autocomplete
         freeSolo

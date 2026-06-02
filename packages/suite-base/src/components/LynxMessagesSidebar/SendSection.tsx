@@ -22,8 +22,8 @@ import {
 } from "@lichtblick/suite-base/components/LynxMessagesSidebar/lynxMessagesUtils";
 import { SchemaForm } from "@lichtblick/suite-base/components/LynxMessagesSidebar/SchemaForm";
 import {
+  type LynxComponentIndex,
   lookupEndpointsForBase,
-  useLynxComponentIndex,
 } from "@lichtblick/suite-base/components/LynxMessagesSidebar/useLynxComponentIndex";
 import { useLynxRuntimeStore } from "@lichtblick/suite-base/lynx/lynxRuntimeStore";
 import type { JsonSchema } from "@lichtblick/suite-base/lynx/types";
@@ -31,23 +31,28 @@ import type { JsonSchema } from "@lichtblick/suite-base/lynx/types";
 import { useStyles } from "./LynxMessagesSidebar.style";
 
 export type SendSectionProps = {
+  index: LynxComponentIndex;
+  target: string;
   onSend: (sentAt: number) => void;
 };
 
 export function SendSection(props: SendSectionProps): React.JSX.Element {
-  const { onSend } = props;
+  const { index, target, onSend } = props;
   const { classes } = useStyles();
   const mqtt = useLynxRuntimeStore((s) => s.mqtt);
-  const index = useLynxComponentIndex();
 
-  const [target, setTarget] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [jsonCustomized, setJsonCustomized] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const pendingFormDataRef = useRef<Record<string, unknown> | undefined>(undefined);
 
-  const baseOptions = useMemo(() => index.bases.map((b) => b.value), [index.bases]);
+  const [prevTarget, setPrevTarget] = useState(target);
+  if (prevTarget !== target) {
+    setPrevTarget(target);
+    setEndpoint("");
+    setJsonCustomized(false);
+  }
 
   const sendEndpoints = useMemo(
     () => lookupEndpointsForBase(index, target.trim(), "send"),
@@ -55,7 +60,7 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
   );
 
   const endpointOptions = useMemo(
-    () => sendEndpoints.map((e) => e.suffix),
+    () => sendEndpoints.map((e) => e.suffix).sort((a, b) => a.localeCompare(b)),
     [sendEndpoints],
   );
 
@@ -74,9 +79,6 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
 
   useEffect(() => {
     if (!targetValid) {
-      setEndpoint("");
-      setFormData({});
-      setJsonCustomized(false);
       return;
     }
     if (sendEndpoints.length === 1 && endpoint === "") {
@@ -129,18 +131,6 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
     onSend(Date.now());
   }, [mqtt, targetValid, endpoint, target, formData, onSend]);
 
-  const handleTargetInputChange = useCallback((_e: React.SyntheticEvent, value: string) => {
-    setTarget(value);
-    setEndpoint("");
-    setJsonCustomized(false);
-  }, []);
-
-  const handleTargetChange = useCallback((_e: React.SyntheticEvent, value: string | null) => {
-    setTarget(value ?? "");
-    setEndpoint("");
-    setJsonCustomized(false);
-  }, []);
-
   const handleEndpointInputChange = useCallback((_e: React.SyntheticEvent, value: string) => {
     setEndpoint(value);
     setJsonCustomized(false);
@@ -150,13 +140,6 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
     setEndpoint(value ?? "");
     setJsonCustomized(false);
   }, []);
-
-  const renderTargetInput = useCallback(
-    (params: AutocompleteRenderInputParams) => (
-      <TextField {...params} label="Component" placeholder="serviceId or serviceId/channelId" />
-    ),
-    [],
-  );
 
   const renderEndpointInput = useCallback(
     (params: AutocompleteRenderInputParams) => (
@@ -174,16 +157,6 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
       <Autocomplete
         freeSolo
         size="small"
-        options={baseOptions}
-        value={target}
-        onInputChange={handleTargetInputChange}
-        onChange={handleTargetChange}
-        renderInput={renderTargetInput}
-      />
-
-      <Autocomplete
-        freeSolo
-        size="small"
         disabled={!targetValid}
         options={endpointOptions}
         value={endpoint}
@@ -193,9 +166,14 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
       />
 
       {hasSchema && selectedEndpoint != undefined && (
-        <div className={classes.schemaForm}>
-          <SchemaForm schema={payloadSchema!} formData={formData} onChange={handleFormChange} />
-        </div>
+        <>
+          <Typography variant="caption" color="text.secondary">
+            Payload forming
+          </Typography>
+          <div className={classes.schemaForm}>
+            <SchemaForm schema={payloadSchema!} formData={formData} onChange={handleFormChange} />
+          </div>
+        </>
       )}
 
       <Typography variant="caption" color="text.secondary">
