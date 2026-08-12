@@ -1,10 +1,11 @@
 # Build stage
 FROM node:22 AS build
 WORKDIR /src
-COPY . ./
+COPY Services/lynx-dash/ ./
+COPY lynx-sdk-typescript/ /lynx-sdk-typescript/
 
 RUN corepack enable
-RUN yarn install --immutable
+RUN yarn install
 
 RUN yarn run web:build:prod
 

@@ -30,3 +30,6 @@ test-results/*
 .sonar_lock
 .scannerwork
 eslint-report.json
+
+# Docker image exports
+*.tar
