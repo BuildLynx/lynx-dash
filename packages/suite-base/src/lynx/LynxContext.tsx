@@ -16,6 +16,7 @@ export function LynxRuntimeProvider(props: { children?: React.ReactNode }): Reac
     networkState: store.networkState,
     serviceIdentity: store.serviceIdentity,
     networkStateRoot: store.networkStateRoot,
+    lynxMessagesPrefill: store.lynxMessagesPrefill,
   }));
 
   useEffect(() => {

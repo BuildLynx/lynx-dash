@@ -107,4 +107,20 @@ export const useStyles = makeStyles()((theme) => ({
     overflow: "auto",
     fontSize: theme.typography.caption.fontSize,
   },
+  endpointList: {
+    marginTop: theme.spacing(0.5),
+    marginBottom: theme.spacing(0.5),
+  },
+  endpointRow: {
+    display: "block",
+    fontFamily: theme.typography.fontFamily,
+    fontSize: theme.typography.caption.fontSize,
+    padding: theme.spacing(0.25, 0.5, 0.25, 1.5),
+    borderRadius: theme.shape.borderRadius,
+    cursor: "context-menu",
+    wordBreak: "break-all",
+    "&:hover": {
+      backgroundColor: theme.palette.action.hover,
+    },
+  },
 }));

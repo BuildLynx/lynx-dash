@@ -30,14 +30,20 @@ import type { JsonSchema } from "@lichtblick/suite-base/lynx/types";
 
 import { useStyles } from "./LynxMessagesSidebar.style";
 
+export type EndpointPrefill = {
+  endpoint: string;
+  prefillId: number;
+};
+
 export type SendSectionProps = {
   index: LynxComponentIndex;
   target: string;
   onSend: (sentAt: number) => void;
+  endpointPrefill?: EndpointPrefill;
 };
 
 export function SendSection(props: SendSectionProps): React.JSX.Element {
-  const { index, target, onSend } = props;
+  const { index, target, onSend, endpointPrefill } = props;
   const { classes } = useStyles();
   const mqtt = useLynxRuntimeStore((s) => s.mqtt);
 
@@ -78,13 +84,24 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
   const targetValid = target.trim() !== "";
 
   useEffect(() => {
+    if (endpointPrefill == undefined) {
+      return;
+    }
+    setEndpoint(endpointPrefill.endpoint);
+    setJsonCustomized(false);
+  }, [endpointPrefill?.prefillId, endpointPrefill]);
+
+  useEffect(() => {
     if (!targetValid) {
+      return;
+    }
+    if (endpointPrefill != undefined) {
       return;
     }
     if (sendEndpoints.length === 1 && endpoint === "") {
       setEndpoint(sendEndpoints[0]!.suffix);
     }
-  }, [targetValid, sendEndpoints, endpoint]);
+  }, [targetValid, sendEndpoints, endpoint, endpointPrefill]);
 
   useEffect(() => {
     if (selectedEndpoint != undefined && !jsonCustomized) {

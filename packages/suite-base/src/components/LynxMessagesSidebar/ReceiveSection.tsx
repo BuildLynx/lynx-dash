@@ -22,14 +22,20 @@ const RECEIVE_LOG_SX = {
 } as const;
 const NO_OP = (): void => {};
 
+export type EndpointPrefill = {
+  endpoint: string;
+  prefillId: number;
+};
+
 export type ReceiveSectionProps = {
   index: LynxComponentIndex;
   target: string;
   lastSendAt: number | undefined;
+  endpointPrefill?: EndpointPrefill;
 };
 
 export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
-  const { index, target, lastSendAt } = props;
+  const { index, target, lastSendAt, endpointPrefill } = props;
   const lastSendAtRef = useRef(lastSendAt);
   lastSendAtRef.current = lastSendAt;
 
@@ -64,13 +70,25 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
     targetValid && endpoint.trim() !== "" ? buildTopic(target.trim(), endpoint.trim()) : undefined;
 
   useEffect(() => {
+    if (endpointPrefill == undefined) {
+      return;
+    }
+    setEndpoint(endpointPrefill.endpoint);
+    setLogText("");
+    setRoundTripMs(undefined);
+  }, [endpointPrefill?.prefillId, endpointPrefill]);
+
+  useEffect(() => {
     if (!targetValid) {
+      return;
+    }
+    if (endpointPrefill != undefined) {
       return;
     }
     if (receiveEndpoints.length === 1 && endpoint === "") {
       setEndpoint(receiveEndpoints[0]!.suffix);
     }
-  }, [targetValid, receiveEndpoints, endpoint]);
+  }, [targetValid, receiveEndpoints, endpoint, endpointPrefill]);
 
   useEffect(() => {
     if (mqtt == undefined || subscribeTopic == undefined) {
@@ -94,7 +112,7 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
       }
 
       const block = JSON.stringify(raw, undefined, 2) ?? "";
-      setLogText((prev) => (prev === "" ? block : `${prev}\n\n---\n\n${block}`));
+      setLogText(block);
     });
 
     return unsubscribe;

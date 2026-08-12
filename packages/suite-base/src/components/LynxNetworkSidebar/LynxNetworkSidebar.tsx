@@ -24,6 +24,7 @@ import { useStyles } from "./LynxNetworkSidebar.style";
 import { NetworkTreeItem } from "./NetworkTreeItem";
 import { getStatusState, isDimmedState } from "./networkTreeUtils";
 import { useLynxNetworkActions } from "./useLynxNetworkActions";
+import { useViewInLynxMessages } from "./useViewInLynxMessages";
 
 export type { SelectedNetworkItem };
 
@@ -131,6 +132,7 @@ export function LynxNetworkSidebar(): React.JSX.Element {
   const startHeightRef = useRef(0);
 
   const { refresh, about, streamToggle, poll, isChannelBusy } = useLynxNetworkActions();
+  const { viewComponent } = useViewInLynxMessages();
 
   const maxDetailHeight = useCallback(() => {
     const containerHeight = rootRef.current?.clientHeight ?? 600;
@@ -293,11 +295,11 @@ export function LynxNetworkSidebar(): React.JSX.Element {
             >
               <MenuItem
                 onClick={() => {
-                  refresh();
+                  viewComponent(contextItem);
                   handleCloseContextMenu();
                 }}
               >
-                Refresh
+                View in Lynx Messages Tab
               </MenuItem>
               <MenuItem
                 disabled={!contextAboutEnabled}

@@ -2,7 +2,7 @@
 
 import { Autocomplete, TextField, Typography } from "@mui/material";
 import type { AutocompleteRenderInputParams } from "@mui/material/Autocomplete";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import EmptyState from "@lichtblick/suite-base/components/EmptyState";
 import { ReceiveSection } from "@lichtblick/suite-base/components/LynxMessagesSidebar/ReceiveSection";
@@ -19,9 +19,47 @@ import { useStyles } from "./LynxMessagesSidebar.style";
 export function LynxMessagesSidebar(): React.JSX.Element {
   const { classes } = useStyles();
   const connected = useLynxRuntimeStore((s) => s.connected);
+  const lynxMessagesPrefill = useLynxRuntimeStore((s) => s.lynxMessagesPrefill);
+  const clearLynxMessagesPrefill = useLynxRuntimeStore((s) => s.clearLynxMessagesPrefill);
   const index = useLynxComponentIndex();
   const [target, setTarget] = useState("");
   const [lastSendAt, setLastSendAt] = useState<number | undefined>(undefined);
+  const [sendEndpointPrefill, setSendEndpointPrefill] = useState<
+    { endpoint: string; prefillId: number } | undefined
+  >(undefined);
+  const [receiveEndpointPrefill, setReceiveEndpointPrefill] = useState<
+    { endpoint: string; prefillId: number } | undefined
+  >(undefined);
+
+  useEffect(() => {
+    if (lynxMessagesPrefill == undefined) {
+      return;
+    }
+    setTarget(lynxMessagesPrefill.target);
+    if (
+      lynxMessagesPrefill.endpoint != undefined &&
+      lynxMessagesPrefill.section === "send"
+    ) {
+      setSendEndpointPrefill({
+        endpoint: lynxMessagesPrefill.endpoint,
+        prefillId: lynxMessagesPrefill.id,
+      });
+      setReceiveEndpointPrefill(undefined);
+    } else if (
+      lynxMessagesPrefill.endpoint != undefined &&
+      lynxMessagesPrefill.section === "receive"
+    ) {
+      setReceiveEndpointPrefill({
+        endpoint: lynxMessagesPrefill.endpoint,
+        prefillId: lynxMessagesPrefill.id,
+      });
+      setSendEndpointPrefill(undefined);
+    } else {
+      setSendEndpointPrefill(undefined);
+      setReceiveEndpointPrefill(undefined);
+    }
+    clearLynxMessagesPrefill();
+  }, [lynxMessagesPrefill, clearLynxMessagesPrefill]);
 
   const baseOptions = useMemo(
     () => index.bases.map((b) => b.value).sort((a, b) => a.localeCompare(b)),
@@ -63,8 +101,18 @@ export function LynxMessagesSidebar(): React.JSX.Element {
               renderInput={renderTargetInput}
             />
           </section>
-          <SendSection index={index} target={target} onSend={setLastSendAt} />
-          <ReceiveSection index={index} target={target} lastSendAt={lastSendAt} />
+          <SendSection
+            index={index}
+            target={target}
+            onSend={setLastSendAt}
+            endpointPrefill={sendEndpointPrefill}
+          />
+          <ReceiveSection
+            index={index}
+            target={target}
+            lastSendAt={lastSendAt}
+            endpointPrefill={receiveEndpointPrefill}
+          />
         </div>
       )}
     </SidebarContent>
