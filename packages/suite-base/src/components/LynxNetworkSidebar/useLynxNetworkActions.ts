@@ -3,82 +3,93 @@
 import { useCallback } from "react";
 
 import { useLynxRuntimeStore } from "@lichtblick/suite-base/lynx/lynxRuntimeStore";
+import type { LynxChannelView, LynxNetworkSnapshot } from "@lichtblick/suite-base/lynx/types";
 
 import type { SelectedNetworkItem } from "./LynxNetworkSelectionContext";
 
-function aboutTargetId(item: SelectedNetworkItem): string | undefined {
-  if (item == undefined) {
-    return undefined;
-  }
-  switch (item.kind) {
-    case "service":
-      return item.serviceId;
-    case "node":
-      return item.nodeId;
+function aboutTargetPath(item: SelectedNetworkItem): string | undefined {
+  switch (item?.kind) {
+    case "component":
+    case "unsupported":
+      return item.path;
     case "channel":
-      return item.serviceId;
+      return item.servicePath;
+    case undefined:
+      return undefined;
   }
 }
 
+export function channelOf(snapshot: LynxNetworkSnapshot, item: SelectedNetworkItem): LynxChannelView | undefined {
+  if (item?.kind !== "channel") {
+    return undefined;
+  }
+  return snapshot.components[item.servicePath]?.channels[item.channelKey];
+}
+
 export function useLynxNetworkActions(): {
+  /** Catch every component up with what it currently says about itself. */
   refresh: () => void;
+  /** Catch one component up (Sync, or a full About when it has no Sync). */
   about: (item: SelectedNetworkItem) => void;
   streamToggle: (item: SelectedNetworkItem) => void;
   poll: (item: SelectedNetworkItem) => void;
-  isChannelBusy: (item: SelectedNetworkItem) => boolean;
+  isChannelStreaming: (item: SelectedNetworkItem) => boolean;
 } {
-  const mqtt = useLynxRuntimeStore((s) => s.mqtt);
-  const networkState = useLynxRuntimeStore((s) => s.networkState);
+  const session = useLynxRuntimeStore((s) => s.session);
+  const snapshot = useLynxRuntimeStore((s) => s.network);
 
   const refresh = useCallback(() => {
-    mqtt?.publish("?/About", {});
-  }, [mqtt]);
+    session?.network.reconcileAll();
+  }, [session]);
 
   const about = useCallback(
     (item: SelectedNetworkItem) => {
-      const targetId = aboutTargetId(item);
-      if (targetId == undefined) {
-        return;
+      const path = aboutTargetPath(item);
+      if (path != undefined) {
+        session?.network.reconcile(path);
       }
-      mqtt?.publish(`${targetId}/?/About`, {});
     },
-    [mqtt],
+    [session],
   );
 
-  const isChannelBusy = useCallback(
+  const isChannelStreaming = useCallback(
     (item: SelectedNetworkItem): boolean => {
-      if (item?.kind !== "channel") {
-        return false;
-      }
-      const channel = networkState?.getChannelAbout(item.serviceId, item.channelId);
-      return channel?.status.state === "busy";
+      const channel = channelOf(snapshot, item);
+      return channel?.command?.command === "Stream";
     },
-    [networkState],
+    [snapshot],
   );
 
   const streamToggle = useCallback(
     (item: SelectedNetworkItem) => {
-      if (item?.kind !== "channel") {
+      const channel = channelOf(snapshot, item);
+      if (session == undefined || channel?.dataTopic == undefined) {
         return;
       }
-      if (isChannelBusy(item)) {
-        mqtt?.stopStream(item.serviceId, item.channelId);
+      if (channel.command?.command === "Stream") {
+        // The user asked: this stops the Stream even if another consumer started it.
+        session.hub.stop(channel.dataTopic);
       } else {
-        mqtt?.startStream(item.serviceId, item.channelId);
+        session.hub.start(channel.dataTopic);
       }
     },
-    [mqtt, isChannelBusy],
+    [session, snapshot],
   );
 
   const poll = useCallback(
     (item: SelectedNetworkItem) => {
-      if (item?.kind !== "channel") {
+      const channel = channelOf(snapshot, item);
+      if (session == undefined || channel?.topics?.poll == undefined) {
         return;
       }
-      mqtt?.poll(item.serviceId, item.channelId);
+      // A wanted Channel delivers the sample to its panels. Otherwise the reply can still be read
+      // in the Lynx Messages tab (Receive, `<`).
+      if (channel.dataTopic == undefined || !session.hub.poll(channel.dataTopic)) {
+        session.publish(channel.topics.poll, {}, { qos: 1 });
+      }
     },
-    [mqtt],
+    [session, snapshot],
   );
 
-  return { refresh, about, streamToggle, poll, isChannelBusy };
+  return { refresh, about, streamToggle, poll, isChannelStreaming };
 }

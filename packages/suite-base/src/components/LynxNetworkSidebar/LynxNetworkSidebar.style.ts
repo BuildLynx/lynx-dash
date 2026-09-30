@@ -107,6 +107,28 @@ export const useStyles = makeStyles()((theme) => ({
     overflow: "auto",
     fontSize: theme.typography.caption.fontSize,
   },
+  spaced: {
+    marginTop: theme.spacing(1),
+  },
+  spacedTight: {
+    marginTop: theme.spacing(0.5),
+  },
+  actionRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: theme.spacing(0.5),
+    marginTop: theme.spacing(0.75),
+    marginBottom: theme.spacing(0.75),
+  },
+  formGrid: {
+    display: "grid",
+    gap: theme.spacing(1),
+    marginTop: theme.spacing(1),
+  },
+  buttonRow: {
+    display: "flex",
+    gap: theme.spacing(0.5),
+  },
   endpointList: {
     marginTop: theme.spacing(0.5),
     marginBottom: theme.spacing(0.5),

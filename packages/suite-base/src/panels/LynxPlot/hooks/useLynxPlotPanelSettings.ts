@@ -6,8 +6,8 @@ import { useTranslation } from "react-i18next";
 
 import { SettingsTreeAction } from "@lichtblick/suite";
 import * as PanelAPI from "@lichtblick/suite-base/PanelAPI";
-import type { LynxNetworkStateTracker } from "@lichtblick/suite-base/lynx/LynxNetworkState";
 import { useLynxRuntimeStore } from "@lichtblick/suite-base/lynx/lynxRuntimeStore";
+import type { LynxNetworkSnapshot } from "@lichtblick/suite-base/lynx/types";
 import { DEFAULT_PLOT_PATH } from "@lichtblick/suite-base/panels/LynxPlot/constants";
 import { buildLynxPlotSettingsTree } from "@lichtblick/suite-base/panels/LynxPlot/utils/buildSettingsTree";
 import { getChannelTitleForPath } from "@lichtblick/suite-base/panels/LynxPlot/utils/lynxPlotUtils";
@@ -27,10 +27,10 @@ import { lineColors } from "@lichtblick/suite-base/util/plotColors";
 
 function handleAddLynxSeriesAction({
   draft,
-  networkState,
+  network,
 }: {
   draft: PlotConfig;
-  networkState: LynxNetworkStateTracker | undefined;
+  network: LynxNetworkSnapshot | undefined;
 }): void {
   if (draft.paths.length === 0) {
     draft.paths.push({ ...DEFAULT_PLOT_PATH });
@@ -40,7 +40,7 @@ function handleAddLynxSeriesAction({
     ...DEFAULT_PLOT_PATH,
     color: lineColors[newIndex % lineColors.length],
   };
-  const title = getChannelTitleForPath(newPath.value, networkState);
+  const title = getChannelTitleForPath(newPath.value, network);
   if (title != undefined) {
     newPath.label = title;
   }
@@ -56,7 +56,7 @@ export default function useLynxPlotPanelSettings(
   const { t } = useTranslation("plot");
   const { t: tPanels } = useTranslation("panels");
   const { topics } = PanelAPI.useDataSourceInfo();
-  const networkState = useLynxRuntimeStore((s) => s.networkState);
+  const network = useLynxRuntimeStore((s) => s.network);
 
   const topicsByName = useMemo(
     () => new Map(topics.map((topic) => [topic.name, topic])),
@@ -86,7 +86,7 @@ export default function useLynxPlotPanelSettings(
       } else if (payload.id === "add-series") {
         saveConfig(
           produce<PlotConfig>((draft: PlotConfig) => {
-            handleAddLynxSeriesAction({ draft, networkState });
+            handleAddLynxSeriesAction({ draft, network });
           }),
         );
       } else if (payload.id === "delete-series") {
@@ -109,7 +109,7 @@ export default function useLynxPlotPanelSettings(
         );
       }
     },
-    [networkState, saveConfig],
+    [network, saveConfig],
   );
 
   useEffect(() => {

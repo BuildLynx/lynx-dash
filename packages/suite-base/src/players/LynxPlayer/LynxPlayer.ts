@@ -1,28 +1,27 @@
 // SPDX-License-Identifier: MPL-2.0
 
-import type { InboundMessage } from "lynx-sdk-typescript";
+import type { ChannelBatch } from "lynx-sdk-typescript";
 import { v4 as uuidv4 } from "uuid";
 
 import { debouncePromise } from "@lichtblick/den/async";
 import { fromMillis, type Time } from "@lichtblick/rostime";
 import { ParameterValue } from "@lichtblick/suite";
-import { LynxMqttManager } from "@lichtblick/suite-base/lynx/LynxMqttManager";
-import { LynxNetworkStateTracker } from "@lichtblick/suite-base/lynx/LynxNetworkState";
-import { LynxServiceIdentity } from "@lichtblick/suite-base/lynx/LynxServiceIdentity";
-import { resolveBrokerUrl } from "@lichtblick/suite-base/lynx/lynxConf";
+import type { LynxWantedFields } from "@lichtblick/suite-base/lynx/LynxChannelHub";
+import { LynxSession } from "@lichtblick/suite-base/lynx/LynxSession";
 import {
   buildChannelPayloadSchemaFromData,
   jsonSchemaToMessageDefs,
 } from "@lichtblick/suite-base/lynx/jsonSchemaToMessageDefinition";
+import { resolveBrokerUrl } from "@lichtblick/suite-base/lynx/lynxConf";
 import { lynxRuntimeStore } from "@lichtblick/suite-base/lynx/lynxRuntimeStore";
 import {
-  LYNX_ABOUT_MONITOR_TOPIC,
-  LYNX_CHANNEL_ABOUT_MONITOR_TOPIC,
   LYNX_CHANNEL_SCHEMA_NAME,
+  NOTICE_SEVERITY_NAMES,
+  isChannelDataTopic,
   lynxChannelSchemaName,
-  parseLynxChannelTopic,
   type JsonSchema,
-  type LynxChannelSample,
+  type LynxChannelView,
+  type LynxNoticeEntry,
 } from "@lichtblick/suite-base/lynx/types";
 import { CURRENT_FRAME_MAXIMUM_SIZE_BYTES } from "@lichtblick/suite-base/players/FoxgloveWebSocketPlayer/constants";
 import { estimateObjectSize } from "@lichtblick/suite-base/players/messageMemoryEstimation";
@@ -44,39 +43,30 @@ import { RosDatatypes } from "@lichtblick/suite-base/types/RosDatatypes";
 const LYNX_PROFILE = "lynx";
 const EMPTY_PROGRESS: PlayerState["progress"] = {};
 const EMPTY_CAPABILITIES: PlayerState["capabilities"] = [];
+/** How long a Notice stays on the alerts list. */
+const NOTICE_ALERT_MS = 60_000;
 
-/** MQTT message base time from user-property s/ns, or dashboard receive time. */
-function messageBaseTime(msg: Pick<InboundMessage, "sec" | "nsec">): Time {
-  if (msg.sec != undefined && msg.nsec != undefined) {
-    return { sec: msg.sec, nsec: msg.nsec };
-  }
-  return fromMillis(Date.now());
+function toTime(seconds: number, nanoseconds: number): Time {
+  return { sec: seconds, nsec: nanoseconds };
 }
 
-function sampleToReceiveTime(sample: LynxChannelSample, baseTime: Time): Time {
-  const relNs = sample.s * 1e9 + sample.ns;
-  const baseNs = baseTime.sec * 1e9 + baseTime.nsec;
-  const totalNs = baseNs + relNs;
-  const sec = Math.floor(totalNs / 1e9);
-  const nsec = totalNs % 1e9;
-  return { sec, nsec };
+/** A sample cannot be from the future: with the publisher's clock ahead of ours, hold it at "now". */
+function clampToNow(time: Time, nowMs: number): Time {
+  return time.sec * 1000 + time.nsec / 1e6 > nowMs ? fromMillis(nowMs) : time;
 }
 
-function channelTopicsFingerprint(
-  entries: ReturnType<LynxNetworkStateTracker["listChannelTopicsWithSchema"]>,
-): string {
-  return entries
-    .map((e) => {
-      const schemaKey =
-        e.payloadSchema != undefined ? JSON.stringify(e.payloadSchema) : "";
-      return `${e.topic}\0${schemaKey}`;
+function topicsFingerprint(channels: readonly LynxChannelView[], inferred: ReadonlyMap<string, JsonSchema>): string {
+  return channels
+    .map((channel) => {
+      const schema = channel.payloadSchema ?? (channel.dataTopic != undefined ? inferred.get(channel.dataTopic) : undefined);
+      return `${channel.dataTopic ?? ""}\0${schema != undefined ? JSON.stringify(schema) : ""}`;
     })
     .join("\n");
 }
 
 export default class LynxPlayer implements Player {
   readonly #brokerUrlInput: string;
-  readonly #serviceId: string;
+  readonly #deploymentNameInput: string | undefined;
   readonly #metricsCollector: PlayerMetricsCollectorInterface;
   readonly #id = uuidv4();
 
@@ -84,45 +74,45 @@ export default class LynxPlayer implements Player {
   #closed = false;
   #presence: PlayerPresence = PlayerPresence.INITIALIZING;
   #alerts = new PlayerAlertManager();
-  #mqtt?: LynxMqttManager;
-  #networkState?: LynxNetworkStateTracker;
-  #serviceIdentity?: LynxServiceIdentity;
+  #session?: LynxSession;
+  #unsubscribers: Array<() => void> = [];
+  #noticeTimers = new Set<ReturnType<typeof setTimeout>>();
   #topics: Topic[] = [];
   #topicSchemaMap = new Map<string, string>();
   #topicStats = new Map<string, TopicStats>();
   #cachedTopicStats = new Map<string, TopicStats>();
   #topicStatsDirty = false;
   #datatypes: RosDatatypes = new Map();
-  /** Schemas inferred from live `<` output when About omits payload_schema. */
+  /** Schemas inferred from live samples when an About omits the `<` payload schema. */
   #inferredPayloadSchemas = new Map<string, JsonSchema>();
   #parsedMessages: MessageEvent[] = [];
   #parsedMessagesBytes = 0;
   #messageSizeEstimateByTopic: Record<string, number> = {};
   #receivedBytes = 0;
   #requestedSubscriptions: SubscribePayload[] = [];
-  #activeStreams = new Set<string>();
   #streamStartTime: Time = fromMillis(Date.now());
   #urlState: PlayerState["urlState"];
   #emitTimer?: ReturnType<typeof setTimeout>;
   #topicsFingerprint?: string;
-  #schemaDefsCache = new Map<
-    string,
-    ReturnType<typeof jsonSchemaToMessageDefs>
-  >();
+  #schemaDefsCache = new Map<string, ReturnType<typeof jsonSchemaToMessageDefs>>();
   #topicsInferred = new Set<string>();
 
   public constructor(args: {
     brokerUrl: string;
-    serviceId: string;
+    /** The dash's deployed name on the network, if the user chose one. Generated per tab otherwise. */
+    deploymentName?: string;
     metricsCollector: PlayerMetricsCollectorInterface;
     sourceId: string;
   }) {
     this.#brokerUrlInput = args.brokerUrl;
-    this.#serviceId = args.serviceId;
+    this.#deploymentNameInput = args.deploymentName;
     this.#metricsCollector = args.metricsCollector;
     this.#urlState = {
       sourceId: args.sourceId,
-      parameters: { url: args.brokerUrl, serviceId: args.serviceId },
+      parameters: {
+        url: args.brokerUrl,
+        ...(args.deploymentName != undefined && args.deploymentName !== "" ? { deploymentName: args.deploymentName } : {}),
+      },
     };
     this.#metricsCollector.playerConstructed();
     void this.#connect();
@@ -139,14 +129,16 @@ export default class LynxPlayer implements Player {
       clearTimeout(this.#emitTimer);
       this.#emitTimer = undefined;
     }
-    for (const topic of this.#activeStreams) {
-      const ref = parseLynxChannelTopic(topic);
-      if (ref && this.#mqtt) {
-        this.#mqtt.stopStream(ref.serviceId, ref.channelId);
-      }
+    for (const timer of this.#noticeTimers) {
+      clearTimeout(timer);
     }
-    this.#activeStreams.clear();
-    this.#mqtt?.disconnect();
+    this.#noticeTimers.clear();
+    for (const unsubscribe of this.#unsubscribers) {
+      unsubscribe();
+    }
+    this.#unsubscribers = [];
+    // Stops the Streams this dash started; another consumer's Stream is left running.
+    void this.#session?.stop();
     lynxRuntimeStore.getState().clearRuntime();
     this.#presence = PlayerPresence.NOT_PRESENT;
     this.#emitState();
@@ -154,10 +146,7 @@ export default class LynxPlayer implements Player {
 
   public setSubscriptions(subscriptions: SubscribePayload[]): void {
     this.#requestedSubscriptions = [...subscriptions];
-    if (!this.#mqtt || this.#presence !== PlayerPresence.PRESENT) {
-      return;
-    }
-    this.#syncStreams();
+    this.#applyWanted();
   }
 
   public setPublishers(_publishers: AdvertiseOptions[]): void {
@@ -191,44 +180,64 @@ export default class LynxPlayer implements Player {
 
     try {
       const brokerUrl = await resolveBrokerUrl(this.#brokerUrlInput);
-      const clientId = `${this.#serviceId}-${this.#id.slice(0, 8)}`;
-      this.#mqtt = new LynxMqttManager(clientId);
-      this.#networkState = new LynxNetworkStateTracker();
-      this.#serviceIdentity = new LynxServiceIdentity(this.#mqtt, {
-        serviceId: this.#serviceId,
+      const session = await LynxSession.create({
+        brokerUrl,
+        deploymentName: this.#deploymentNameInput,
       });
+      if (this.#closed) {
+        void session.stop();
+        return;
+      }
+      this.#session = session;
 
-      await this.#mqtt.connect(brokerUrl, this.#serviceId);
-
-      const onAboutMessage = (msg: InboundMessage): void => {
-        this.#networkState?.updateFromAboutMessage(msg);
-        lynxRuntimeStore.getState().setRuntime({
-          networkStateRoot: this.#networkState!.state,
-        });
-        const topicsChanged = this.#rebuildTopics();
-        if (topicsChanged) {
+      this.#unsubscribers.push(
+        session.network.subscribe((snapshot) => {
+          lynxRuntimeStore.getState().setRuntime({ network: snapshot });
+          if (this.#rebuildTopics()) {
+            this.#scheduleEmit();
+          }
+        }),
+        session.network.onNotice((notice) => {
+          this.#showNotice(notice);
+        }),
+        session.network.onProblem((path, message) => {
+          this.#alerts.addAlert(`lynx:problem:${path}`, {
+            severity: "warn",
+            message: `${path}: ${message}`,
+          });
           this.#scheduleEmit();
-        }
-      };
-      this.#mqtt.addMessageHandler(LYNX_ABOUT_MONITOR_TOPIC, onAboutMessage);
-      this.#mqtt.addMessageHandler(LYNX_CHANNEL_ABOUT_MONITOR_TOPIC, onAboutMessage);
+        }),
+        session.hub.onBatch((channel, batch) => {
+          this.#handleBatch(channel, batch);
+        }),
+        session.hub.onProblem((key, problem) => {
+          if (problem == undefined) {
+            this.#alerts.removeAlert(key);
+          } else {
+            this.#alerts.addAlert(key, { severity: problem.severity, message: problem.message, tip: problem.tip });
+          }
+          this.#scheduleEmit();
+        }),
+      );
 
-      this.#serviceIdentity.register();
+      await session.start();
+      if (this.#closed) {
+        void session.stop();
+        return;
+      }
+
       this.#streamStartTime = fromMillis(Date.now());
       this.#presence = PlayerPresence.PRESENT;
-
       lynxRuntimeStore.getState().setRuntime({
         connected: true,
         brokerUrl,
-        serviceId: this.#serviceId,
-        mqtt: this.#mqtt,
-        networkState: this.#networkState,
-        serviceIdentity: this.#serviceIdentity,
-        networkStateRoot: this.#networkState.state,
+        deploymentName: session.deploymentName,
+        session,
+        network: session.network.snapshot(),
       });
 
       this.#rebuildTopics();
-      this.#syncStreams();
+      this.#applyWanted();
       this.#emitState();
     } catch (err: unknown) {
       this.#presence = PlayerPresence.ERROR;
@@ -242,11 +251,47 @@ export default class LynxPlayer implements Player {
     }
   }
 
-  #setDatatypesFromPayloadSchema(
-    datatypes: RosDatatypes,
-    schemaName: string,
-    payloadSchema: JsonSchema,
-  ): void {
+  /** Tell the hub which Channels the panels want, and which fields of each. */
+  #applyWanted(): void {
+    const session = this.#session;
+    if (session == undefined || this.#presence !== PlayerPresence.PRESENT) {
+      return;
+    }
+    const wanted = new Map<string, Array<readonly string[] | undefined>>();
+    for (const subscription of this.#requestedSubscriptions) {
+      if (!isChannelDataTopic(subscription.topic)) {
+        continue;
+      }
+      const list = wanted.get(subscription.topic) ?? [];
+      list.push(subscription.fields);
+      wanted.set(subscription.topic, list);
+    }
+    session.hub.setWanted(wanted as ReadonlyMap<string, LynxWantedFields>);
+  }
+
+  /** A Notice from a component, shown as an alert for a while when it is a warning or an error. */
+  #showNotice(notice: LynxNoticeEntry): void {
+    if (notice.severity < 3) {
+      return;
+    }
+    const id = `lynx:notice:${notice.path}:${notice.action}`;
+    const severityName = NOTICE_SEVERITY_NAMES[notice.severity] ?? "notice";
+    this.#alerts.addAlert(id, {
+      severity: notice.severity >= 4 ? "error" : "warn",
+      message: `${notice.path}${notice.action !== "" ? ` (${notice.action})` : ""}: ${notice.message}`,
+      tip: `A ${severityName} Notice published by the component.`,
+    });
+    const timer = setTimeout(() => {
+      this.#noticeTimers.delete(timer);
+      if (this.#alerts.removeAlert(id)) {
+        this.#scheduleEmit();
+      }
+    }, NOTICE_ALERT_MS);
+    this.#noticeTimers.add(timer);
+    this.#scheduleEmit();
+  }
+
+  #setDatatypesFromPayloadSchema(datatypes: RosDatatypes, schemaName: string, payloadSchema: JsonSchema): void {
     const cacheKey = `${schemaName}\0${JSON.stringify(payloadSchema)}`;
     let cached = this.#schemaDefsCache.get(cacheKey);
     if (cached == undefined) {
@@ -260,13 +305,17 @@ export default class LynxPlayer implements Player {
     }
   }
 
-  /** Rebuild topics/datatypes when the channel list or schemas change. Returns true if anything changed. */
+  /** Rebuild topics and datatypes when the Channel list or schemas change. Returns true if anything changed. */
   #rebuildTopics(): boolean {
-    if (!this.#networkState) {
+    const network = this.#session?.network;
+    if (!network) {
       return false;
     }
-    const channelEntries = this.#networkState.listChannelTopicsWithSchema();
-    const fingerprint = channelTopicsFingerprint(channelEntries);
+    const channels = network
+      .allChannels()
+      .filter((channel) => channel.dataTopic != undefined)
+      .sort((a, b) => a.dataTopic!.localeCompare(b.dataTopic!));
+    const fingerprint = topicsFingerprint(channels, this.#inferredPayloadSchemas);
     if (fingerprint === this.#topicsFingerprint) {
       return false;
     }
@@ -276,13 +325,13 @@ export default class LynxPlayer implements Player {
     const topicSchemaMap = new Map<string, string>();
     const datatypes: RosDatatypes = new Map();
 
-    for (const entry of channelEntries) {
-      const schemaName = lynxChannelSchemaName(entry.serviceId, entry.channelId);
-      topics.push({ name: entry.topic, schemaName });
-      topicSchemaMap.set(entry.topic, schemaName);
+    for (const channel of channels) {
+      const topic = channel.dataTopic!;
+      const schemaName = lynxChannelSchemaName(channel.servicePath, channel.key);
+      topics.push({ name: topic, schemaName });
+      topicSchemaMap.set(topic, schemaName);
 
-      const payloadSchema =
-        entry.payloadSchema ?? this.#inferredPayloadSchemas.get(entry.topic);
+      const payloadSchema = channel.payloadSchema ?? this.#inferredPayloadSchemas.get(topic);
       if (payloadSchema != undefined) {
         this.#setDatatypesFromPayloadSchema(datatypes, schemaName, payloadSchema);
       } else {
@@ -323,44 +372,13 @@ export default class LynxPlayer implements Player {
     this.#scheduleEmit();
   }
 
-  #syncStreams(): void {
-    if (!this.#mqtt) {
-      return;
-    }
-    const wanted = new Set(this.#requestedSubscriptions.map((s) => s.topic));
-    for (const topic of wanted) {
-      if (this.#activeStreams.has(topic)) {
-        continue;
-      }
-      const ref = parseLynxChannelTopic(topic);
-      if (!ref) {
-        continue;
-      }
-      this.#activeStreams.add(topic);
-      this.#mqtt.startStream(ref.serviceId, ref.channelId, {}, (msg) => {
-        this.#handleChannelOutput(ref.topic, msg);
-      });
-    }
-    for (const topic of [...this.#activeStreams]) {
-      if (!wanted.has(topic)) {
-        const ref = parseLynxChannelTopic(topic);
-        if (ref) {
-          this.#mqtt.stopStream(ref.serviceId, ref.channelId);
-        }
-        this.#activeStreams.delete(topic);
-      }
-    }
-  }
-
   #evictParsedMessagesIfNeeded(): void {
     if (this.#parsedMessagesBytes <= CURRENT_FRAME_MAXIMUM_SIZE_BYTES) {
       return;
     }
     this.#alerts.addAlert("lynx:parsedMessageCacheFull", {
       severity: "error",
-      message: `Lynx player maximum frame size (${(
-        CURRENT_FRAME_MAXIMUM_SIZE_BYTES / 1_000_000
-      ).toFixed(
+      message: `Lynx player maximum frame size (${(CURRENT_FRAME_MAXIMUM_SIZE_BYTES / 1_000_000).toFixed(
         2,
       )}MB) reached. Dropping old messages. This can occur if the browser tab has been inactive.`,
     });
@@ -375,35 +393,25 @@ export default class LynxPlayer implements Player {
     this.#parsedMessagesBytes -= droppedBytes;
   }
 
-  #handleChannelOutput(topic: string, msg: InboundMessage): void {
-    const baseTime = messageBaseTime(msg);
-    const raw: unknown = msg.payload;
-    const wireBytes = msg.raw?.byteLength ?? 0;
-    const samples: LynxChannelSample[] = Array.isArray(raw)
-      ? (raw as LynxChannelSample[])
-      : LynxMqttManager.parseChannelOutput(
-          typeof raw === "object" && raw != null ? (raw as Record<string, unknown>) : {},
-        );
+  #handleBatch(channel: LynxChannelView, batch: ChannelBatch): void {
+    const topic = channel.dataTopic;
+    if (topic == undefined) {
+      return;
+    }
+    const nowMs = Date.now();
 
-    const perSampleWireBytes =
-      samples.length > 0 ? Math.ceil(wireBytes / samples.length) : wireBytes;
+    for (const sample of batch.samples) {
+      this.#maybeInferDatatypesFromSample(topic, sample.data);
 
-    for (const sample of samples) {
-      if (sample.data != undefined && typeof sample.data === "object" && !Array.isArray(sample.data)) {
-        this.#maybeInferDatatypesFromSample(topic, sample.data as Record<string, unknown>);
+      let sizeInBytes = this.#messageSizeEstimateByTopic[topic];
+      if (sizeInBytes == undefined) {
+        sizeInBytes = estimateObjectSize(sample.data);
+        this.#messageSizeEstimateByTopic[topic] = sizeInBytes;
       }
 
-      let msgSizeEstimate = this.#messageSizeEstimateByTopic[topic];
-      if (msgSizeEstimate == undefined) {
-        msgSizeEstimate = estimateObjectSize(sample.data);
-        this.#messageSizeEstimateByTopic[topic] = msgSizeEstimate;
-      }
-      const sizeInBytes = Math.max(perSampleWireBytes, msgSizeEstimate);
-
-      const receiveTime = sampleToReceiveTime(sample, baseTime);
       const messageEvent: MessageEvent = {
         topic,
-        receiveTime,
+        receiveTime: clampToNow(toTime(sample.time.s, sample.time.ns), nowMs),
         message: sample.data,
         schemaName: this.#topicSchemaMap.get(topic) ?? LYNX_CHANNEL_SCHEMA_NAME,
         sizeInBytes,
@@ -458,7 +466,7 @@ export default class LynxPlayer implements Player {
       capabilities: EMPTY_CAPABILITIES,
       profile: LYNX_PROFILE,
       playerId: this.#id,
-      name: `Lynx (${this.#serviceId})`,
+      name: `Lynx (${this.#session?.deploymentName ?? "connecting"})`,
       alerts: this.#alerts.alerts(),
       urlState: this.#urlState,
       activeData:

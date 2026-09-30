@@ -3,11 +3,9 @@
 import { createContext } from "react";
 
 export type SelectedNetworkItem =
-  | { kind: "channel"; serviceId: string; channelId: string }
-  | { kind: "service"; serviceId: string }
-  | { kind: "node"; nodeId: string }
+  | { kind: "channel"; servicePath: string; channelKey: string }
+  | { kind: "component"; path: string }
+  | { kind: "unsupported"; path: string }
   | undefined;
 
-export const LynxNetworkSelectionContext = createContext<
-  (item: SelectedNetworkItem) => void
->(() => {});
+export const LynxNetworkSelectionContext = createContext<(item: SelectedNetworkItem) => void>(() => {});

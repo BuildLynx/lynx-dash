@@ -4,18 +4,13 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { memo, useCallback, useContext, useMemo, useState } from "react";
 
-import type { LynxComponentState } from "@lichtblick/suite-base/lynx/types";
-
-import { useStyles } from "./LynxNetworkSidebar.style";
 import { LynxNetworkContextMenuContext } from "./LynxNetworkContextMenuContext";
 import { LynxNetworkSelectionContext } from "./LynxNetworkSelectionContext";
 import type { SelectedNetworkItem } from "./LynxNetworkSelectionContext";
-import {
-  channelStatusIcon,
-  formatStateSuffix,
-} from "./networkTreeUtils";
+import { useStyles } from "./LynxNetworkSidebar.style";
+import { channelStatusIcon, formatStateSuffix } from "./networkTreeUtils";
 
-export type NetworkTreeItemKind = "service" | "channel" | "node";
+export type NetworkTreeItemKind = "service" | "channel" | "node" | "unsupported";
 
 const MAX_DEPTH = 12;
 const ROW_PADDING_STYLES: ReadonlyArray<{ paddingLeft: number }> = Array.from(
@@ -25,16 +20,20 @@ const ROW_PADDING_STYLES: ReadonlyArray<{ paddingLeft: number }> = Array.from(
 
 export type NetworkTreeItemProps = {
   kind: NetworkTreeItemKind;
-  id: string;
-  state?: LynxComponentState;
+  /** The deployed name shown on the row. */
+  label: string;
+  /** Shown on hover: the title, or why a component is unsupported. */
+  tooltip?: string;
+  /** Short state shown after the name, such as "connected" or "streaming". */
+  stateLabel?: string;
+  /** For a Channel: whether data is flowing. */
+  streaming?: boolean;
   dimmed?: boolean;
   depth: number;
   selected?: boolean;
   /** Primitives describing what to pass to the selection handler when this row is clicked. */
-  selectKind?: "service" | "channel" | "node";
-  selectServiceId?: string;
-  selectChannelId?: string;
-  selectNodeId?: string;
+  selectPath: string;
+  selectChannelKey?: string;
   children?: React.ReactNode;
   defaultExpanded?: boolean;
 };
@@ -42,15 +41,15 @@ export type NetworkTreeItemProps = {
 function NetworkTreeItemComponent(props: NetworkTreeItemProps): React.JSX.Element {
   const {
     kind,
-    id,
-    state,
+    label,
+    tooltip,
+    stateLabel,
+    streaming = false,
     dimmed = false,
     depth,
     selected,
-    selectKind,
-    selectServiceId,
-    selectChannelId,
-    selectNodeId,
+    selectPath,
+    selectChannelKey,
     children,
     defaultExpanded = true,
   } = props;
@@ -58,42 +57,30 @@ function NetworkTreeItemComponent(props: NetworkTreeItemProps): React.JSX.Elemen
   const onSelectItem = useContext(LynxNetworkSelectionContext);
   const onOpenContextMenu = useContext(LynxNetworkContextMenuContext);
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const hasChildren = children != undefined;
+  const hasChildren = children != undefined && (!Array.isArray(children) || children.length > 0);
   const isChannel = kind === "channel";
-  const isBusy = state === "busy" && !dimmed;
+  const isBusy = streaming && !dimmed;
 
-  const colorClasses = cx(
-    dimmed && classes.dimmed,
-    isBusy && classes.busyText,
-  );
+  const colorClasses = cx(dimmed && classes.dimmed, isBusy && classes.busyText);
   const labelClasses = cx(classes.label, colorClasses);
 
   const rowStyle = ROW_PADDING_STYLES[Math.min(depth, MAX_DEPTH)]!;
 
   const selectionItem = useMemo((): SelectedNetworkItem => {
-    if (selectKind === "service" && selectServiceId != undefined) {
-      return { kind: "service", serviceId: selectServiceId };
+    if (kind === "channel" && selectChannelKey != undefined) {
+      return { kind: "channel", servicePath: selectPath, channelKey: selectChannelKey };
     }
-    if (
-      selectKind === "channel" &&
-      selectServiceId != undefined &&
-      selectChannelId != undefined
-    ) {
-      return { kind: "channel", serviceId: selectServiceId, channelId: selectChannelId };
+    if (kind === "unsupported") {
+      return { kind: "unsupported", path: selectPath };
     }
-    if (selectKind === "node" && selectNodeId != undefined) {
-      return { kind: "node", nodeId: selectNodeId };
-    }
-    return undefined;
-  }, [selectKind, selectServiceId, selectChannelId, selectNodeId]);
+    return { kind: "component", path: selectPath };
+  }, [kind, selectPath, selectChannelKey]);
 
   const handleClick = useCallback(() => {
     if (hasChildren) {
       setExpanded((v) => !v);
     }
-    if (selectionItem != undefined) {
-      onSelectItem(selectionItem);
-    }
+    onSelectItem(selectionItem);
   }, [hasChildren, selectionItem, onSelectItem]);
 
   const handleContextMenu = useCallback(
@@ -112,34 +99,30 @@ function NetworkTreeItemComponent(props: NetworkTreeItemProps): React.JSX.Elemen
   return (
     <div>
       <div
-        className={cx(classes.row, selected && classes.selected)}
+        className={cx(classes.row, selected === true && classes.selected)}
         style={rowStyle}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         role="treeitem"
         aria-expanded={hasChildren ? expanded : undefined}
+        title={tooltip}
       >
         {hasChildren ? (
           <span className={classes.expandIcon}>
-            {expanded ? (
-              <ExpandMoreIcon fontSize="small" />
-            ) : (
-              <ChevronRightIcon fontSize="small" />
-            )}
+            {expanded ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
           </span>
         ) : isChannel ? (
           <span className={cx(classes.channelIcon, colorClasses)} aria-hidden>
-            {channelStatusIcon(state)}
+            {channelStatusIcon(streaming ? "streaming" : "idle")}
           </span>
         ) : (
           <span className={classes.expandIcon} />
         )}
         <span className={labelClasses}>
           {kind === "node" && "[node] "}
-          {id}
-          {kind !== "node" && (
-            <span className={classes.statusText}>{formatStateSuffix(state)}</span>
-          )}
+          {kind === "unsupported" && "[unsupported] "}
+          {label}
+          {stateLabel != undefined && <span className={classes.statusText}>{formatStateSuffix(stateLabel)}</span>}
         </span>
       </div>
       {hasChildren && expanded && <div role="group">{children}</div>}

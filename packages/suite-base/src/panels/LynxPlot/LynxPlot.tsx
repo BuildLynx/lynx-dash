@@ -57,8 +57,7 @@ const LynxPlot = (props: PlotProps): React.JSX.Element => {
 
   const { setMessagePathDropConfig } = usePanelContext();
   const draggingRef = useRef(false);
-  const networkState = useLynxRuntimeStore((s) => s.networkState);
-  const networkStateRoot = useLynxRuntimeStore((s) => s.networkStateRoot);
+  const network = useLynxRuntimeStore((s) => s.network);
   const { topics } = PanelAPI.useDataSourceInfo();
 
   const topicsByName = useMemo(
@@ -66,12 +65,11 @@ const LynxPlot = (props: PlotProps): React.JSX.Element => {
     [topics],
   );
 
+  // The snapshot changes whenever an About arrives; the bounds it yields are structurally equal
+  // most of the time, and `stableSchemaBounds` below keeps their identity steady.
   const schemaBounds = useMemo(() => {
-    return computeLynxPlotSchemaYBounds(config.paths, networkState);
-    // networkStateRoot is intentionally included to recompute when About arrives,
-    // but computeLynxPlotSchemaYBounds is cheap and returns structurally-equal results
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.paths, networkState, networkStateRoot]);
+    return computeLynxPlotSchemaYBounds(config.paths, network);
+  }, [config.paths, network]);
 
   const stableSchemaBounds = useRef(schemaBounds);
   if (
@@ -154,7 +152,7 @@ const LynxPlot = (props: PlotProps): React.JSX.Element => {
             ...paths
               .filter((path) => isLynxSchemaTopic(topicsByName.get(path.topicName)))
               .map((path) => {
-                const label = getChannelTitleForPath(path.path, networkState);
+                const label = getChannelTitleForPath(path.path, network);
                 return {
                   value: path.path,
                   enabled: true,
@@ -166,7 +164,7 @@ const LynxPlot = (props: PlotProps): React.JSX.Element => {
         }));
       },
     });
-  }, [networkState, saveConfig, setMessagePathDropConfig, topicsByName]);
+  }, [network, saveConfig, setMessagePathDropConfig, topicsByName]);
 
   useEffect(() => {
     coordinator?.handleConfig(plotConfig, theme.palette.mode, globalVariables);

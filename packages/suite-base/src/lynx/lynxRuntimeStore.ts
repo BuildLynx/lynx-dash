@@ -2,10 +2,8 @@
 
 import { createStore, useStore } from "zustand";
 
-import type { LynxMqttManager } from "@lichtblick/suite-base/lynx/LynxMqttManager";
-import type { LynxNetworkStateTracker } from "@lichtblick/suite-base/lynx/LynxNetworkState";
-import type { LynxServiceIdentity } from "@lichtblick/suite-base/lynx/LynxServiceIdentity";
-import type { LynxNetworkStateRoot } from "@lichtblick/suite-base/lynx/types";
+import type { LynxSession } from "@lichtblick/suite-base/lynx/LynxSession";
+import { EMPTY_NETWORK_SNAPSHOT, type LynxNetworkSnapshot } from "@lichtblick/suite-base/lynx/types";
 
 export type LynxMessagesPrefill = {
   id: number;
@@ -17,11 +15,11 @@ export type LynxMessagesPrefill = {
 export type LynxRuntime = {
   connected: boolean;
   brokerUrl: string | undefined;
-  serviceId: string | undefined;
-  mqtt: LynxMqttManager | undefined;
-  networkState: LynxNetworkStateTracker | undefined;
-  serviceIdentity: LynxServiceIdentity | undefined;
-  networkStateRoot: LynxNetworkStateRoot;
+  /** This dash's own deployed name on the network. */
+  deploymentName: string | undefined;
+  session: LynxSession | undefined;
+  /** The latest snapshot of the network, kept current by the player. */
+  network: LynxNetworkSnapshot;
   lynxMessagesPrefill: LynxMessagesPrefill | undefined;
 };
 
@@ -34,16 +32,12 @@ export type LynxRuntimeStore = LynxRuntime & {
 
 let nextLynxMessagesPrefillId = 1;
 
-const initialNetworkState: LynxNetworkStateRoot = { services: {}, childNodes: {} };
-
 export const lynxRuntimeStore = createStore<LynxRuntimeStore>((set) => ({
   connected: false,
   brokerUrl: undefined,
-  serviceId: undefined,
-  mqtt: undefined,
-  networkState: undefined,
-  serviceIdentity: undefined,
-  networkStateRoot: initialNetworkState,
+  deploymentName: undefined,
+  session: undefined,
+  network: EMPTY_NETWORK_SNAPSHOT,
   lynxMessagesPrefill: undefined,
   setRuntime: (runtime) => {
     set((state) => ({ ...state, ...runtime }));
@@ -52,21 +46,16 @@ export const lynxRuntimeStore = createStore<LynxRuntimeStore>((set) => ({
     set({
       connected: false,
       brokerUrl: undefined,
-      serviceId: undefined,
-      mqtt: undefined,
-      networkState: undefined,
-      serviceIdentity: undefined,
-      networkStateRoot: initialNetworkState,
+      deploymentName: undefined,
+      session: undefined,
+      network: EMPTY_NETWORK_SNAPSHOT,
       lynxMessagesPrefill: undefined,
     });
   },
   setLynxMessagesPrefill: (prefill) => {
     set((state) => ({
       ...state,
-      lynxMessagesPrefill:
-        prefill == undefined
-          ? undefined
-          : { ...prefill, id: nextLynxMessagesPrefillId++ },
+      lynxMessagesPrefill: prefill == undefined ? undefined : { ...prefill, id: nextLynxMessagesPrefillId++ },
     }));
   },
   clearLynxMessagesPrefill: () => {

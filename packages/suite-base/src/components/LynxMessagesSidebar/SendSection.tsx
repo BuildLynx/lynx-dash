@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
 
-import type { AutocompleteRenderInputParams } from "@mui/material/Autocomplete";
 import {
   Autocomplete,
   Button,
@@ -12,15 +11,16 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import type { AutocompleteRenderInputParams } from "@mui/material/Autocomplete";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { JsonPayloadEditor } from "@lichtblick/suite-base/components/LynxMessagesSidebar/JsonPayloadEditor";
+import { SchemaForm } from "@lichtblick/suite-base/components/LynxMessagesSidebar/SchemaForm";
 import {
   buildTopic,
   defaultPayloadFromSchema,
   type LynxEndpointRef,
 } from "@lichtblick/suite-base/components/LynxMessagesSidebar/lynxMessagesUtils";
-import { SchemaForm } from "@lichtblick/suite-base/components/LynxMessagesSidebar/SchemaForm";
 import {
   type LynxComponentIndex,
   lookupEndpointsForBase,
@@ -45,7 +45,7 @@ export type SendSectionProps = {
 export function SendSection(props: SendSectionProps): React.JSX.Element {
   const { index, target, onSend, endpointPrefill } = props;
   const { classes } = useStyles();
-  const mqtt = useLynxRuntimeStore((s) => s.mqtt);
+  const session = useLynxRuntimeStore((s) => s.session);
 
   const [endpoint, setEndpoint] = useState("");
   const [formData, setFormData] = useState<Record<string, unknown>>({});
@@ -140,13 +140,13 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
   }, []);
 
   const handleSend = useCallback(() => {
-    if (mqtt == undefined || !targetValid || endpoint.trim() === "") {
+    if (session == undefined || !targetValid || endpoint.trim() === "") {
       return;
     }
     const topic = buildTopic(target.trim(), endpoint.trim());
-    mqtt.publish(topic, formData, 0, false);
+    session.publish(topic, formData, { qos: 1 });
     onSend(Date.now());
-  }, [mqtt, targetValid, endpoint, target, formData, onSend]);
+  }, [session, targetValid, endpoint, target, formData, onSend]);
 
   const handleEndpointInputChange = useCallback((_e: React.SyntheticEvent, value: string) => {
     setEndpoint(value);
@@ -188,7 +188,7 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
             Payload forming
           </Typography>
           <div className={classes.schemaForm}>
-            <SchemaForm schema={payloadSchema!} formData={formData} onChange={handleFormChange} />
+            <SchemaForm schema={payloadSchema} formData={formData} onChange={handleFormChange} />
           </div>
         </>
       )}
@@ -207,7 +207,7 @@ export function SendSection(props: SendSectionProps): React.JSX.Element {
       <Button
         variant="contained"
         size="small"
-        disabled={mqtt == undefined || !targetValid || endpoint.trim() === ""}
+        disabled={session == undefined || !targetValid || endpoint.trim() === ""}
         onClick={handleSend}
         className={classes.sendButton}
       >

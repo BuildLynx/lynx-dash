@@ -1,0 +1,1481 @@
+{
+ "note": "Captured 2026-09-30 from a live A3.0 broker (slicesCore trimmed to 4 of 15 Channels). Top-level components, so rooted == local frame.",
+ "slicesCore": {
+  "lynxType": "Service",
+  "component": {
+   "name": "slicesCore",
+   "title": "Slices Core",
+   "description": "A Slices stack: modular instruments on one bus, read through its core.",
+   "lynx_version": "A3.0",
+   "time_source": "unix"
+  },
+  "config": {
+   "deployment": {
+    "name": "slicesCore-46534b98",
+    "title": "Bench stack"
+   },
+   "notice_level": 2
+  },
+  "status": {
+   "connected": true
+  },
+  "generation": 11,
+  "endpoints": {
+   "slicesCore-46534b98/@/Status": {
+    "endpoint_direction": "pub",
+    "description": "Publish retained presence.",
+    "payload_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object"
+    }
+   },
+   "slicesCore-46534b98/@/About": {
+    "endpoint_direction": "pub",
+    "description": "Publish full or partial component information.",
+    "payload_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object"
+    }
+   },
+   "slicesCore-46534b98/?/About": {
+    "endpoint_direction": "sub",
+    "description": "Query component information.",
+    "payload_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object"
+    },
+    "replyTopics": [
+     "slicesCore-46534b98/@/About"
+    ]
+   },
+   "slicesCore-46534b98/@/Notice": {
+    "endpoint_direction": "pub",
+    "description": "Publish a structured notice.",
+    "payload_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object"
+    }
+   }
+  },
+  "channels": {
+   "441BF6D79ADC-lynx": {
+    "lynxType": "Channel",
+    "component": {
+     "name": "lynx",
+     "title": "Lynx",
+     "description": "0: off, 1: connecting, 2: connected, 3: broker not reachable, 4: broker refused this client",
+     "lynx_version": "A3.0"
+    },
+    "config": {
+     "deployment": {
+      "name": "441BF6D79ADC-lynx",
+      "title": "Core: Lynx",
+      "description": "0: off, 1: connecting, 2: connected, 3: broker not reachable, 4: broker refused this client"
+     }
+    },
+    "status": {
+     "command": null
+    },
+    "endpoints": {
+     "slicesCore-46534b98/441BF6D79ADC-lynx/!/Poll": {
+      "endpoint_direction": "sub",
+      "description": "Request one sample.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "contents": {
+         "type": [
+          "object",
+          "boolean"
+         ],
+         "default": true
+        }
+       }
+      },
+      "replyTopics": [],
+      "dataOutput": true
+     },
+     "slicesCore-46534b98/441BF6D79ADC-lynx/!/Stream": {
+      "endpoint_direction": "sub",
+      "description": "Start a stream. Collects the channel if it is not collected.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "contents": {
+         "type": [
+          "object",
+          "boolean"
+         ],
+         "default": true
+        },
+        "sampleInterval": {
+         "type": "number",
+         "minimum": 0,
+         "default": 1
+        },
+        "numSamples": {
+         "type": "integer",
+         "minimum": 0,
+         "default": 0
+        },
+        "batch": {
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "maxInterval": {
+           "type": "number",
+           "minimum": 0,
+           "default": 300
+          },
+          "maxSamples": {
+           "type": "integer",
+           "minimum": 0,
+           "default": 1
+          }
+         }
+        }
+       }
+      },
+      "replyTopics": [
+       "slicesCore-46534b98/@/About"
+      ],
+      "dataOutput": true
+     },
+     "slicesCore-46534b98/441BF6D79ADC-lynx/!/Stop": {
+      "endpoint_direction": "sub",
+      "description": "Stop the stream, and collection if the stream started it.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object"
+      },
+      "replyTopics": [
+       "slicesCore-46534b98/@/About"
+      ],
+      "dataOutput": false
+     },
+     "slicesCore-46534b98/441BF6D79ADC-lynx/<": {
+      "endpoint_direction": "pub",
+      "description": "Publish sample data.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "array",
+       "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+         "s",
+         "ns",
+         "data"
+        ],
+        "properties": {
+         "s": {
+          "type": "integer",
+          "minimum": 0
+         },
+         "ns": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999999999
+         },
+         "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "lynx"
+          ],
+          "properties": {
+           "lynx": {
+            "type": "integer"
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "441BF6D79ADC-rail5v": {
+    "lynxType": "Channel",
+    "component": {
+     "name": "rail5v",
+     "title": "5 V rail",
+     "description": "",
+     "lynx_version": "A3.0"
+    },
+    "config": {
+     "deployment": {
+      "name": "441BF6D79ADC-rail5v",
+      "title": "Core: 5 V rail",
+      "description": ""
+     }
+    },
+    "status": {
+     "command": null
+    },
+    "endpoints": {
+     "slicesCore-46534b98/441BF6D79ADC-rail5v/!/Poll": {
+      "endpoint_direction": "sub",
+      "description": "Request one sample.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "contents": {
+         "type": [
+          "object",
+          "boolean"
+         ],
+         "default": true
+        }
+       }
+      },
+      "replyTopics": [],
+      "dataOutput": true
+     },
+     "slicesCore-46534b98/441BF6D79ADC-rail5v/!/Stream": {
+      "endpoint_direction": "sub",
+      "description": "Start a stream. Collects the channel if it is not collected.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "contents": {
+         "type": [
+          "object",
+          "boolean"
+         ],
+         "default": true
+        },
+        "sampleInterval": {
+         "type": "number",
+         "minimum": 0,
+         "default": 1
+        },
+        "numSamples": {
+         "type": "integer",
+         "minimum": 0,
+         "default": 0
+        },
+        "batch": {
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "maxInterval": {
+           "type": "number",
+           "minimum": 0,
+           "default": 300
+          },
+          "maxSamples": {
+           "type": "integer",
+           "minimum": 0,
+           "default": 1
+          }
+         }
+        }
+       }
+      },
+      "replyTopics": [
+       "slicesCore-46534b98/@/About"
+      ],
+      "dataOutput": true
+     },
+     "slicesCore-46534b98/441BF6D79ADC-rail5v/!/Stop": {
+      "endpoint_direction": "sub",
+      "description": "Stop the stream, and collection if the stream started it.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object"
+      },
+      "replyTopics": [
+       "slicesCore-46534b98/@/About"
+      ],
+      "dataOutput": false
+     },
+     "slicesCore-46534b98/441BF6D79ADC-rail5v/<": {
+      "endpoint_direction": "pub",
+      "description": "Publish sample data.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "array",
+       "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+         "s",
+         "ns",
+         "data"
+        ],
+        "properties": {
+         "s": {
+          "type": "integer",
+          "minimum": 0
+         },
+         "ns": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999999999
+         },
+         "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "rail5v"
+          ],
+          "properties": {
+           "rail5v": {
+            "type": [
+             "number",
+             "null"
+            ],
+            "description": "In V."
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "EEED28C829A163DE-force": {
+    "lynxType": "Channel",
+    "component": {
+     "name": "force",
+     "title": "Force",
+     "description": "Tare, then calibrate with a known mass; empty until then",
+     "lynx_version": "A3.0"
+    },
+    "config": {
+     "deployment": {
+      "name": "EEED28C829A163DE-force",
+      "title": "Load Cell: Force",
+      "description": "Tare, then calibrate with a known mass; empty until then"
+     }
+    },
+    "status": {
+     "command": null
+    },
+    "endpoints": {
+     "slicesCore-46534b98/EEED28C829A163DE-force/!/Poll": {
+      "endpoint_direction": "sub",
+      "description": "Request one sample.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "contents": {
+         "type": [
+          "object",
+          "boolean"
+         ],
+         "default": true
+        }
+       }
+      },
+      "replyTopics": [],
+      "dataOutput": true
+     },
+     "slicesCore-46534b98/EEED28C829A163DE-force/!/Stream": {
+      "endpoint_direction": "sub",
+      "description": "Start a stream. Collects the channel if it is not collected.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "contents": {
+         "type": [
+          "object",
+          "boolean"
+         ],
+         "default": true
+        },
+        "sampleInterval": {
+         "type": "number",
+         "minimum": 0,
+         "default": 1
+        },
+        "numSamples": {
+         "type": "integer",
+         "minimum": 0,
+         "default": 0
+        },
+        "batch": {
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "maxInterval": {
+           "type": "number",
+           "minimum": 0,
+           "default": 300
+          },
+          "maxSamples": {
+           "type": "integer",
+           "minimum": 0,
+           "default": 1
+          }
+         }
+        }
+       }
+      },
+      "replyTopics": [
+       "slicesCore-46534b98/@/About"
+      ],
+      "dataOutput": true
+     },
+     "slicesCore-46534b98/EEED28C829A163DE-force/!/Stop": {
+      "endpoint_direction": "sub",
+      "description": "Stop the stream, and collection if the stream started it.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object"
+      },
+      "replyTopics": [
+       "slicesCore-46534b98/@/About"
+      ],
+      "dataOutput": false
+     },
+     "slicesCore-46534b98/EEED28C829A163DE-force/<": {
+      "endpoint_direction": "pub",
+      "description": "Publish sample data.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "array",
+       "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+         "s",
+         "ns",
+         "data"
+        ],
+        "properties": {
+         "s": {
+          "type": "integer",
+          "minimum": 0
+         },
+         "ns": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999999999
+         },
+         "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "force"
+          ],
+          "properties": {
+           "force": {
+            "type": [
+             "number",
+             "null"
+            ],
+            "description": "In N. null means: Not tared or calibrated."
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "44E3FAAD6691C441-led": {
+    "lynxType": "Channel",
+    "component": {
+     "name": "led",
+     "title": "LED",
+     "description": "The onboard LED",
+     "lynx_version": "A3.0"
+    },
+    "config": {
+     "deployment": {
+      "name": "44E3FAAD6691C441-led",
+      "title": "Fake Sensor: LED",
+      "description": "The onboard LED"
+     }
+    },
+    "status": {
+     "command": null
+    },
+    "endpoints": {
+     "slicesCore-46534b98/44E3FAAD6691C441-led/!/Poll": {
+      "endpoint_direction": "sub",
+      "description": "Request one sample.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "contents": {
+         "type": [
+          "object",
+          "boolean"
+         ],
+         "default": true
+        }
+       }
+      },
+      "replyTopics": [],
+      "dataOutput": true
+     },
+     "slicesCore-46534b98/44E3FAAD6691C441-led/!/Stream": {
+      "endpoint_direction": "sub",
+      "description": "Start a stream. Collects the channel if it is not collected.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "contents": {
+         "type": [
+          "object",
+          "boolean"
+         ],
+         "default": true
+        },
+        "sampleInterval": {
+         "type": "number",
+         "minimum": 0,
+         "default": 1
+        },
+        "numSamples": {
+         "type": "integer",
+         "minimum": 0,
+         "default": 0
+        },
+        "batch": {
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "maxInterval": {
+           "type": "number",
+           "minimum": 0,
+           "default": 300
+          },
+          "maxSamples": {
+           "type": "integer",
+           "minimum": 0,
+           "default": 1
+          }
+         }
+        }
+       }
+      },
+      "replyTopics": [
+       "slicesCore-46534b98/@/About"
+      ],
+      "dataOutput": true
+     },
+     "slicesCore-46534b98/44E3FAAD6691C441-led/!/Stop": {
+      "endpoint_direction": "sub",
+      "description": "Stop the stream, and collection if the stream started it.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object"
+      },
+      "replyTopics": [
+       "slicesCore-46534b98/@/About"
+      ],
+      "dataOutput": false
+     },
+     "slicesCore-46534b98/44E3FAAD6691C441-led/<": {
+      "endpoint_direction": "pub",
+      "description": "Publish sample data.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "array",
+       "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+         "s",
+         "ns",
+         "data"
+        ],
+        "properties": {
+         "s": {
+          "type": "integer",
+          "minimum": 0
+         },
+         "ns": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999999999
+         },
+         "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "led"
+          ],
+          "properties": {
+           "led": {
+            "type": "boolean"
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "node": {
+  "lynxType": "Node",
+  "component": {
+   "name": "lynxNode",
+   "title": "Lynx Node",
+   "description": "Relays and monitors one broker layer.",
+   "lynx_version": "A3.0",
+   "time_source": "unix"
+  },
+  "config": {
+   "deployment": {
+    "name": "lynxNode-e35ae243"
+   },
+   "notice_level": 1
+  },
+  "status": {
+   "connected": true
+  },
+  "endpoints": {
+   "lynxNode-e35ae243/@/Status": {
+    "endpoint_direction": "pub",
+    "description": "Publish retained presence: whether this component is connected.",
+    "payload_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "lynxType",
+      "connected"
+     ],
+     "properties": {
+      "lynxType": {
+       "type": "string",
+       "enum": [
+        "Service",
+        "Node"
+       ]
+      },
+      "connected": {
+       "type": "boolean"
+      }
+     }
+    }
+   },
+   "lynxNode-e35ae243/@/About": {
+    "endpoint_direction": "pub",
+    "description": "Publish a full or partial description of the Component.",
+    "payload_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "additionalProperties": true,
+     "properties": {
+      "lynxType": {
+       "type": "string",
+       "enum": [
+        "Service",
+        "Node"
+       ]
+      },
+      "component": {
+       "type": "object"
+      },
+      "config": {
+       "type": "object"
+      },
+      "status": {
+       "type": "object"
+      },
+      "endpoints": {
+       "type": "object"
+      },
+      "channels": {
+       "type": "object"
+      },
+      "services": {
+       "type": "object"
+      },
+      "childNodes": {
+       "type": "object"
+      },
+      "replace": {
+       "type": "array",
+       "items": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+         "type": "string",
+         "minLength": 1
+        }
+       }
+      }
+     }
+    }
+   },
+   "lynxNode-e35ae243/?/About": {
+    "endpoint_direction": "sub",
+    "description": "Query information about the Component.",
+    "payload_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "contents": {
+       "title": "contents",
+       "description": "Selects which parts of the payload to return. true or omitted: everything. false: only values that changed since the baseline. An object selects keys recursively; {} selects nothing.",
+       "type": [
+        "object",
+        "boolean"
+       ],
+       "default": true
+      }
+     }
+    },
+    "replyTopics": [
+     "lynxNode-e35ae243/@/About"
+    ]
+   },
+   "lynxNode-e35ae243/@/Sync": {
+    "endpoint_direction": "pub",
+    "description": "Publish one reconciliation reply: where a cached About differs from the current one.",
+    "payload_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "additionalProperties": true,
+     "required": [
+      "generation"
+     ],
+     "properties": {
+      "generation": {
+       "type": "integer",
+       "minimum": 0
+      }
+     }
+    }
+   },
+   "lynxNode-e35ae243/?/Sync": {
+    "endpoint_direction": "sub",
+    "description": "Locate differences between a cached About and the current one, level by level.",
+    "payload_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "additionalProperties": {
+      "oneOf": [
+       {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}$"
+       },
+       {
+        "$ref": "#/definitions/node"
+       }
+      ]
+     },
+     "definitions": {
+      "node": {
+       "type": "object",
+       "additionalProperties": {
+        "oneOf": [
+         {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}$"
+         },
+         {
+          "$ref": "#/definitions/node"
+         }
+        ]
+       }
+      }
+     }
+    },
+    "replyTopics": [
+     "lynxNode-e35ae243/@/Sync"
+    ]
+   },
+   "lynxNode-e35ae243/@/Notice": {
+    "endpoint_direction": "pub",
+    "description": "Publish a notice about the Component.",
+    "payload_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "action",
+      "severity",
+      "message",
+      "data"
+     ],
+     "properties": {
+      "action": {
+       "type": "string"
+      },
+      "severity": {
+       "type": "string",
+       "enum": [
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL"
+       ]
+      },
+      "message": {
+       "type": "string"
+      },
+      "data": {
+       "type": "object"
+      }
+     }
+    }
+   }
+  },
+  "services": {
+   "slicesCore-46534b98": {
+    "lynxType": "Service",
+    "component": {
+     "name": "slicesCore",
+     "title": "Slices Core",
+     "description": "A Slices stack: modular instruments on one bus, read through its core.",
+     "lynx_version": "A3.0",
+     "time_source": "unix"
+    },
+    "config": {
+     "deployment": {
+      "name": "slicesCore-46534b98",
+      "title": "Bench stack"
+     },
+     "notice_level": 2
+    },
+    "status": {
+     "connected": true
+    },
+    "generation": 11,
+    "endpoints": {
+     "slicesCore-46534b98/@/Status": {
+      "endpoint_direction": "pub",
+      "description": "Publish retained presence.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object"
+      }
+     },
+     "slicesCore-46534b98/@/About": {
+      "endpoint_direction": "pub",
+      "description": "Publish full or partial component information.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object"
+      }
+     },
+     "slicesCore-46534b98/?/About": {
+      "endpoint_direction": "sub",
+      "description": "Query component information.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object"
+      },
+      "replyTopics": [
+       "slicesCore-46534b98/@/About"
+      ]
+     },
+     "slicesCore-46534b98/@/Notice": {
+      "endpoint_direction": "pub",
+      "description": "Publish a structured notice.",
+      "payload_schema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object"
+      }
+     }
+    },
+    "channels": {
+     "441BF6D79ADC-lynx": {
+      "lynxType": "Channel",
+      "component": {
+       "name": "lynx",
+       "title": "Lynx",
+       "description": "0: off, 1: connecting, 2: connected, 3: broker not reachable, 4: broker refused this client",
+       "lynx_version": "A3.0"
+      },
+      "config": {
+       "deployment": {
+        "name": "441BF6D79ADC-lynx",
+        "title": "Core: Lynx",
+        "description": "0: off, 1: connecting, 2: connected, 3: broker not reachable, 4: broker refused this client"
+       }
+      },
+      "status": {
+       "command": null
+      },
+      "endpoints": {
+       "slicesCore-46534b98/441BF6D79ADC-lynx/!/Poll": {
+        "endpoint_direction": "sub",
+        "description": "Request one sample.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "contents": {
+           "type": [
+            "object",
+            "boolean"
+           ],
+           "default": true
+          }
+         }
+        },
+        "replyTopics": [],
+        "dataOutput": true
+       },
+       "slicesCore-46534b98/441BF6D79ADC-lynx/!/Stream": {
+        "endpoint_direction": "sub",
+        "description": "Start a stream. Collects the channel if it is not collected.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "contents": {
+           "type": [
+            "object",
+            "boolean"
+           ],
+           "default": true
+          },
+          "sampleInterval": {
+           "type": "number",
+           "minimum": 0,
+           "default": 1
+          },
+          "numSamples": {
+           "type": "integer",
+           "minimum": 0,
+           "default": 0
+          },
+          "batch": {
+           "type": "object",
+           "additionalProperties": false,
+           "properties": {
+            "maxInterval": {
+             "type": "number",
+             "minimum": 0,
+             "default": 300
+            },
+            "maxSamples": {
+             "type": "integer",
+             "minimum": 0,
+             "default": 1
+            }
+           }
+          }
+         }
+        },
+        "replyTopics": [
+         "slicesCore-46534b98/@/About"
+        ],
+        "dataOutput": true
+       },
+       "slicesCore-46534b98/441BF6D79ADC-lynx/!/Stop": {
+        "endpoint_direction": "sub",
+        "description": "Stop the stream, and collection if the stream started it.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "object"
+        },
+        "replyTopics": [
+         "slicesCore-46534b98/@/About"
+        ],
+        "dataOutput": false
+       },
+       "slicesCore-46534b98/441BF6D79ADC-lynx/<": {
+        "endpoint_direction": "pub",
+        "description": "Publish sample data.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "array",
+         "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "s",
+           "ns",
+           "data"
+          ],
+          "properties": {
+           "s": {
+            "type": "integer",
+            "minimum": 0
+           },
+           "ns": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999999999
+           },
+           "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+             "lynx"
+            ],
+            "properties": {
+             "lynx": {
+              "type": "integer"
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     },
+     "441BF6D79ADC-rail5v": {
+      "lynxType": "Channel",
+      "component": {
+       "name": "rail5v",
+       "title": "5 V rail",
+       "description": "",
+       "lynx_version": "A3.0"
+      },
+      "config": {
+       "deployment": {
+        "name": "441BF6D79ADC-rail5v",
+        "title": "Core: 5 V rail",
+        "description": ""
+       }
+      },
+      "status": {
+       "command": null
+      },
+      "endpoints": {
+       "slicesCore-46534b98/441BF6D79ADC-rail5v/!/Poll": {
+        "endpoint_direction": "sub",
+        "description": "Request one sample.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "contents": {
+           "type": [
+            "object",
+            "boolean"
+           ],
+           "default": true
+          }
+         }
+        },
+        "replyTopics": [],
+        "dataOutput": true
+       },
+       "slicesCore-46534b98/441BF6D79ADC-rail5v/!/Stream": {
+        "endpoint_direction": "sub",
+        "description": "Start a stream. Collects the channel if it is not collected.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "contents": {
+           "type": [
+            "object",
+            "boolean"
+           ],
+           "default": true
+          },
+          "sampleInterval": {
+           "type": "number",
+           "minimum": 0,
+           "default": 1
+          },
+          "numSamples": {
+           "type": "integer",
+           "minimum": 0,
+           "default": 0
+          },
+          "batch": {
+           "type": "object",
+           "additionalProperties": false,
+           "properties": {
+            "maxInterval": {
+             "type": "number",
+             "minimum": 0,
+             "default": 300
+            },
+            "maxSamples": {
+             "type": "integer",
+             "minimum": 0,
+             "default": 1
+            }
+           }
+          }
+         }
+        },
+        "replyTopics": [
+         "slicesCore-46534b98/@/About"
+        ],
+        "dataOutput": true
+       },
+       "slicesCore-46534b98/441BF6D79ADC-rail5v/!/Stop": {
+        "endpoint_direction": "sub",
+        "description": "Stop the stream, and collection if the stream started it.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "object"
+        },
+        "replyTopics": [
+         "slicesCore-46534b98/@/About"
+        ],
+        "dataOutput": false
+       },
+       "slicesCore-46534b98/441BF6D79ADC-rail5v/<": {
+        "endpoint_direction": "pub",
+        "description": "Publish sample data.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "array",
+         "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "s",
+           "ns",
+           "data"
+          ],
+          "properties": {
+           "s": {
+            "type": "integer",
+            "minimum": 0
+           },
+           "ns": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999999999
+           },
+           "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+             "rail5v"
+            ],
+            "properties": {
+             "rail5v": {
+              "type": [
+               "number",
+               "null"
+              ],
+              "description": "In V."
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     },
+     "EEED28C829A163DE-force": {
+      "lynxType": "Channel",
+      "component": {
+       "name": "force",
+       "title": "Force",
+       "description": "Tare, then calibrate with a known mass; empty until then",
+       "lynx_version": "A3.0"
+      },
+      "config": {
+       "deployment": {
+        "name": "EEED28C829A163DE-force",
+        "title": "Load Cell: Force",
+        "description": "Tare, then calibrate with a known mass; empty until then"
+       }
+      },
+      "status": {
+       "command": null
+      },
+      "endpoints": {
+       "slicesCore-46534b98/EEED28C829A163DE-force/!/Poll": {
+        "endpoint_direction": "sub",
+        "description": "Request one sample.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "contents": {
+           "type": [
+            "object",
+            "boolean"
+           ],
+           "default": true
+          }
+         }
+        },
+        "replyTopics": [],
+        "dataOutput": true
+       },
+       "slicesCore-46534b98/EEED28C829A163DE-force/!/Stream": {
+        "endpoint_direction": "sub",
+        "description": "Start a stream. Collects the channel if it is not collected.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "contents": {
+           "type": [
+            "object",
+            "boolean"
+           ],
+           "default": true
+          },
+          "sampleInterval": {
+           "type": "number",
+           "minimum": 0,
+           "default": 1
+          },
+          "numSamples": {
+           "type": "integer",
+           "minimum": 0,
+           "default": 0
+          },
+          "batch": {
+           "type": "object",
+           "additionalProperties": false,
+           "properties": {
+            "maxInterval": {
+             "type": "number",
+             "minimum": 0,
+             "default": 300
+            },
+            "maxSamples": {
+             "type": "integer",
+             "minimum": 0,
+             "default": 1
+            }
+           }
+          }
+         }
+        },
+        "replyTopics": [
+         "slicesCore-46534b98/@/About"
+        ],
+        "dataOutput": true
+       },
+       "slicesCore-46534b98/EEED28C829A163DE-force/!/Stop": {
+        "endpoint_direction": "sub",
+        "description": "Stop the stream, and collection if the stream started it.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "object"
+        },
+        "replyTopics": [
+         "slicesCore-46534b98/@/About"
+        ],
+        "dataOutput": false
+       },
+       "slicesCore-46534b98/EEED28C829A163DE-force/<": {
+        "endpoint_direction": "pub",
+        "description": "Publish sample data.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "array",
+         "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "s",
+           "ns",
+           "data"
+          ],
+          "properties": {
+           "s": {
+            "type": "integer",
+            "minimum": 0
+           },
+           "ns": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999999999
+           },
+           "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+             "force"
+            ],
+            "properties": {
+             "force": {
+              "type": [
+               "number",
+               "null"
+              ],
+              "description": "In N. null means: Not tared or calibrated."
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     },
+     "44E3FAAD6691C441-led": {
+      "lynxType": "Channel",
+      "component": {
+       "name": "led",
+       "title": "LED",
+       "description": "The onboard LED",
+       "lynx_version": "A3.0"
+      },
+      "config": {
+       "deployment": {
+        "name": "44E3FAAD6691C441-led",
+        "title": "Fake Sensor: LED",
+        "description": "The onboard LED"
+       }
+      },
+      "status": {
+       "command": null
+      },
+      "endpoints": {
+       "slicesCore-46534b98/44E3FAAD6691C441-led/!/Poll": {
+        "endpoint_direction": "sub",
+        "description": "Request one sample.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "contents": {
+           "type": [
+            "object",
+            "boolean"
+           ],
+           "default": true
+          }
+         }
+        },
+        "replyTopics": [],
+        "dataOutput": true
+       },
+       "slicesCore-46534b98/44E3FAAD6691C441-led/!/Stream": {
+        "endpoint_direction": "sub",
+        "description": "Start a stream. Collects the channel if it is not collected.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "contents": {
+           "type": [
+            "object",
+            "boolean"
+           ],
+           "default": true
+          },
+          "sampleInterval": {
+           "type": "number",
+           "minimum": 0,
+           "default": 1
+          },
+          "numSamples": {
+           "type": "integer",
+           "minimum": 0,
+           "default": 0
+          },
+          "batch": {
+           "type": "object",
+           "additionalProperties": false,
+           "properties": {
+            "maxInterval": {
+             "type": "number",
+             "minimum": 0,
+             "default": 300
+            },
+            "maxSamples": {
+             "type": "integer",
+             "minimum": 0,
+             "default": 1
+            }
+           }
+          }
+         }
+        },
+        "replyTopics": [
+         "slicesCore-46534b98/@/About"
+        ],
+        "dataOutput": true
+       },
+       "slicesCore-46534b98/44E3FAAD6691C441-led/!/Stop": {
+        "endpoint_direction": "sub",
+        "description": "Stop the stream, and collection if the stream started it.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "object"
+        },
+        "replyTopics": [
+         "slicesCore-46534b98/@/About"
+        ],
+        "dataOutput": false
+       },
+       "slicesCore-46534b98/44E3FAAD6691C441-led/<": {
+        "endpoint_direction": "pub",
+        "description": "Publish sample data.",
+        "payload_schema": {
+         "$schema": "http://json-schema.org/draft-07/schema#",
+         "type": "array",
+         "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "s",
+           "ns",
+           "data"
+          ],
+          "properties": {
+           "s": {
+            "type": "integer",
+            "minimum": 0
+           },
+           "ns": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999999999
+           },
+           "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+             "led"
+            ],
+            "properties": {
+             "led": {
+              "type": "boolean"
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "childNodes": {}
+ }
+}

@@ -6,10 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import EmptyState from "@lichtblick/suite-base/components/EmptyState";
 import { useLynxRuntimeStore } from "@lichtblick/suite-base/lynx/lynxRuntimeStore";
-import type {
-  LynxNetworkStateRoot,
-  LynxServiceAbout,
-} from "@lichtblick/suite-base/lynx/types";
+import type { LynxNetworkSnapshot } from "@lichtblick/suite-base/lynx/types";
 
 import { DetailPanel } from "./ChannelDetailPanel";
 import {
@@ -22,7 +19,7 @@ import {
 } from "./LynxNetworkSelectionContext";
 import { useStyles } from "./LynxNetworkSidebar.style";
 import { NetworkTreeItem } from "./NetworkTreeItem";
-import { getStatusState, isDimmedState } from "./networkTreeUtils";
+import { channelStateLabel, componentStateLabel, isDimmedComponent } from "./networkTreeUtils";
 import { useLynxNetworkActions } from "./useLynxNetworkActions";
 import { useViewInLynxMessages } from "./useViewInLynxMessages";
 
@@ -32,84 +29,55 @@ const DETAIL_DEFAULT_HEIGHT = 200;
 const DETAIL_MIN_HEIGHT = 80;
 const DETAIL_MAX_HEIGHT_RATIO = 0.6;
 
-function sortEntries<T>(entries: [string, T][]): [string, T][] {
-  return entries.sort(([a], [b]) => a.localeCompare(b));
-}
-
-function renderServices(
-  services: Record<string, LynxServiceAbout>,
+/** One component, its Channels, and the components observed beneath it. */
+function renderComponent(
+  snapshot: LynxNetworkSnapshot,
+  path: string,
   depth: number,
-  parentDimmed: boolean,
+  parent: { dimmed: boolean },
   selected: SelectedNetworkItem,
-): React.ReactNode[] {
-  return sortEntries(Object.entries(services)).flatMap(([serviceId, service]) => {
-    if (service == undefined) {
-      return [];
-    }
-    const serviceState = getStatusState(service);
-    const serviceDimmed = parentDimmed || isDimmedState(serviceState);
-    const channels = service.channels ?? {};
-    return (
-      <NetworkTreeItem
-        key={`service-${serviceId}`}
-        kind="service"
-        id={serviceId}
-        state={serviceState}
-        dimmed={serviceDimmed}
-        depth={depth}
-        selected={selected?.kind === "service" && selected.serviceId === serviceId}
-        selectKind="service"
-        selectServiceId={serviceId}
-      >
-        {sortEntries(Object.entries(channels)).map(([channelId, channel]) => {
-          const channelState = getStatusState(channel);
-          const channelDimmed = serviceDimmed || isDimmedState(channelState);
-          return (
-            <NetworkTreeItem
-              key={`channel-${serviceId}-${channelId}`}
-              kind="channel"
-              id={channelId}
-              state={channelState}
-              dimmed={channelDimmed}
-              depth={depth + 1}
-              defaultExpanded={false}
-              selected={
-                selected?.kind === "channel" &&
-                selected.serviceId === serviceId &&
-                selected.channelId === channelId
-              }
-              selectKind="channel"
-              selectServiceId={serviceId}
-              selectChannelId={channelId}
-            />
-          );
-        })}
-      </NetworkTreeItem>
-    );
-  });
-}
+): React.ReactNode {
+  const component = snapshot.components[path];
+  if (component == undefined) {
+    return undefined;
+  }
+  const dimmed = parent.dimmed || isDimmedComponent(component);
+  const channels = Object.values(component.channels).sort((a, b) => a.name.localeCompare(b.name));
+  const childPaths = snapshot.childrenOf[path] ?? [];
 
-function renderNodes(
-  nodes: Record<string, LynxNetworkStateRoot>,
-  depth: number,
-  parentDimmed: boolean,
-  selected: SelectedNetworkItem,
-): React.ReactNode[] {
-  return sortEntries(Object.entries(nodes)).map(([nodeId, nodeState]) => (
+  return (
     <NetworkTreeItem
-      key={`node-${nodeId}`}
-      kind="node"
-      id={nodeId}
-      dimmed={parentDimmed}
+      key={`component-${path}`}
+      kind={component.kind}
+      label={component.name}
+      tooltip={component.title !== component.name ? component.title : undefined}
+      stateLabel={component.kind === "node" ? undefined : componentStateLabel(component)}
+      dimmed={dimmed}
       depth={depth}
-      selected={selected?.kind === "node" && selected.nodeId === nodeId}
-      selectKind="node"
-      selectNodeId={nodeId}
+      selected={selected?.kind === "component" && selected.path === path}
+      selectPath={path}
     >
-      {renderServices(nodeState.services, depth + 1, parentDimmed, selected)}
-      {renderNodes(nodeState.childNodes, depth + 1, parentDimmed, selected)}
+      {[
+        ...channels.map((channel) => (
+          <NetworkTreeItem
+            key={`channel-${path}-${channel.key}`}
+            kind="channel"
+            label={channel.name}
+            tooltip={channel.title !== channel.name ? channel.title : undefined}
+            stateLabel={channelStateLabel(channel.command)}
+            streaming={channel.command?.command === "Stream"}
+            dimmed={dimmed}
+            depth={depth + 1}
+            defaultExpanded={false}
+            selected={selected?.kind === "channel" && selected.servicePath === path && selected.channelKey === channel.key}
+            selectPath={path}
+            selectChannelKey={channel.key}
+          />
+        )),
+        ...childPaths.map((childPath) => renderComponent(snapshot, childPath, depth + 1, { dimmed }, selected)),
+      ]}
     </NetworkTreeItem>
-  ));
+  );
 }
 
 type ContextMenuState = {
@@ -121,7 +89,7 @@ type ContextMenuState = {
 export function LynxNetworkSidebar(): React.JSX.Element {
   const { classes } = useStyles();
   const connected = useLynxRuntimeStore((s) => s.connected);
-  const networkStateRoot = useLynxRuntimeStore((s) => s.networkStateRoot);
+  const snapshot = useLynxRuntimeStore((s) => s.network);
   const [selected, setSelected] = useState<SelectedNetworkItem>(undefined);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | undefined>(undefined);
   const [detailHeight, setDetailHeight] = useState(DETAIL_DEFAULT_HEIGHT);
@@ -131,7 +99,7 @@ export function LynxNetworkSidebar(): React.JSX.Element {
   const startYRef = useRef(0);
   const startHeightRef = useRef(0);
 
-  const { refresh, about, streamToggle, poll, isChannelBusy } = useLynxNetworkActions();
+  const { refresh, about, streamToggle, poll, isChannelStreaming } = useLynxNetworkActions();
   const { viewComponent } = useViewInLynxMessages();
 
   const maxDetailHeight = useCallback(() => {
@@ -234,16 +202,28 @@ export function LynxNetworkSidebar(): React.JSX.Element {
     if (!connected) {
       return undefined;
     }
-    const items: React.ReactNode[] = [];
-    items.push(...renderServices(networkStateRoot.services, 0, false, selected));
-    items.push(...renderNodes(networkStateRoot.childNodes, 0, false, selected));
+    const items: React.ReactNode[] = snapshot.roots.map((path) => renderComponent(snapshot, path, 0, { dimmed: false }, selected));
+    for (const entry of snapshot.unsupported) {
+      items.push(
+        <NetworkTreeItem
+          key={`unsupported-${entry.path}`}
+          kind="unsupported"
+          label={entry.path}
+          tooltip={entry.reason}
+          dimmed
+          depth={0}
+          selected={selected?.kind === "unsupported" && selected.path === entry.path}
+          selectPath={entry.path}
+        />,
+      );
+    }
     return items;
-  }, [connected, networkStateRoot, selected]);
+  }, [connected, snapshot, selected]);
 
   const contextItem = contextMenu?.item;
   const contextAboutEnabled = contextItem != undefined;
   const contextChannel = contextItem?.kind === "channel";
-  const contextBusy = contextChannel && isChannelBusy(contextItem);
+  const contextBusy = contextChannel && isChannelStreaming(contextItem);
 
   return (
     <div ref={rootRef} className={classes.root}>
@@ -266,7 +246,7 @@ export function LynxNetworkSidebar(): React.JSX.Element {
                 tree
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>
-                  Waiting for About messages on the broker…
+                  Waiting for components to announce themselves on the broker…
                 </Typography>
               )}
             </div>
@@ -317,7 +297,7 @@ export function LynxNetworkSidebar(): React.JSX.Element {
                   handleCloseContextMenu();
                 }}
               >
-                {contextBusy ? "Stop" : "Stream"}
+                {contextBusy ? "Stop stream" : "Start stream"}
               </MenuItem>
               <MenuItem
                 disabled={!contextChannel}

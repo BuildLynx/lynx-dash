@@ -76,7 +76,7 @@ export function LynxMessagesSidebar(): React.JSX.Element {
 
   const renderTargetInput = useCallback(
     (params: AutocompleteRenderInputParams) => (
-      <TextField {...params} label="Component" placeholder="serviceId or serviceId/channelId" />
+      <TextField {...params} label="Component" placeholder="name or name/channel" />
     ),
     [],
   );

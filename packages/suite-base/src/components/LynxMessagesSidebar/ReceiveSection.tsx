@@ -40,7 +40,7 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
   lastSendAtRef.current = lastSendAt;
 
   const { classes } = useStyles();
-  const mqtt = useLynxRuntimeStore((s) => s.mqtt);
+  const session = useLynxRuntimeStore((s) => s.session);
 
   const [endpoint, setEndpoint] = useState("");
   const [logText, setLogText] = useState("");
@@ -91,16 +91,16 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
   }, [targetValid, receiveEndpoints, endpoint, endpointPrefill]);
 
   useEffect(() => {
-    if (mqtt == undefined || subscribeTopic == undefined) {
+    if (session == undefined || subscribeTopic == undefined) {
       return;
     }
 
-    const unsubscribe = mqtt.addReceiveObserver(subscribeTopic, (msg) => {
+    const unsubscribe = session.addReceiveObserver(subscribeTopic, (msg) => {
       const receivedAt = Date.now();
       const raw = msg.payload;
       const payload: Record<string, unknown> =
         typeof raw === "object" && raw != null && !Array.isArray(raw)
-          ? (raw as Record<string, unknown>)
+          ? (raw)
           : { value: raw };
 
       const sendAt = lastSendAtRef.current;
@@ -116,7 +116,7 @@ export function ReceiveSection(props: ReceiveSectionProps): React.JSX.Element {
     });
 
     return unsubscribe;
-  }, [mqtt, subscribeTopic]);
+  }, [session, subscribeTopic]);
 
   const handleEndpointInputChange = useCallback((_e: React.SyntheticEvent, value: string) => {
     setEndpoint(value);

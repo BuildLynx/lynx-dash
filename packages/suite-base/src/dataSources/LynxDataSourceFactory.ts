@@ -14,7 +14,7 @@ export default class LynxDataSourceFactory implements IDataSourceFactory {
   public displayName = "Lynx Network";
   public iconName: IDataSourceFactory["iconName"] = "Flow";
   public description =
-    "Connect to a Lynx sensor network over MQTT WebSocket. Lynx Dash registers as a first-class Lynx service and discovers network topology from retained About messages.";
+    "Connect to a Lynx sensor network over MQTT WebSocket. Lynx Dash registers as a Lynx service and discovers the network from each component's retained Status and its About. Components that speak an older Lynx protocol are listed as unsupported.";
   public docsLinks = [
     {
       label: "Lynx Protocol",
@@ -44,24 +44,33 @@ export default class LynxDataSourceFactory implements IDataSourceFactory {
         },
       },
       {
-        id: "serviceId",
-        label: "Lynx Service ID",
-        defaultValue: "lynxDash",
-        description: "Service ID for this dashboard instance on the Lynx network.",
+        id: "deploymentName",
+        label: "Deployed name (optional)",
+        defaultValue: "",
+        description:
+          "The name this dashboard uses on the Lynx network. Leave empty to get one per browser tab (lynxDash-xxxxxxxx), which lets several dashboards run side by side.",
+        validate: (newValue: string): Error | undefined => {
+          const value = newValue.trim();
+          if (value !== "" && !/^[^/+#\s@?!<]+$/.test(value)) {
+            return new Error("A name cannot contain spaces or any of / + # @ ? ! <");
+          }
+          return undefined;
+        },
       },
     ],
   };
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const url = args.params?.url;
-    const serviceId = args.params?.serviceId ?? "lynxDash";
+    // A `serviceId` saved by an older version is ignored: it named every tab the same.
+    const deploymentName = args.params?.deploymentName?.trim();
     if (!url) {
       return;
     }
 
     return new LynxPlayer({
       brokerUrl: url,
-      serviceId,
+      deploymentName: deploymentName === "" ? undefined : deploymentName,
       metricsCollector: args.metricsCollector,
       sourceId: this.id,
     });

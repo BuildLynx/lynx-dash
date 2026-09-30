@@ -2,54 +2,33 @@
 
 import { MessageDefinitionField } from "@lichtblick/message-definition";
 
-import type { JsonSchema, LynxChannelAbout, LynxEndpointAbout } from "@lichtblick/suite-base/lynx/types";
+import type { JsonSchema } from "@lichtblick/suite-base/lynx/types";
 import type { OptionalMessageDefinition } from "@lichtblick/suite-base/types/RosDatatypes";
 
-function readEndpointPayloadSchema(endpoint: LynxEndpointAbout | undefined): JsonSchema | undefined {
-  if (endpoint == undefined) {
-    return undefined;
+/**
+ * The JSON Schema `type` of a field, ignoring `"null"`.
+ *
+ * A Lynx Channel reports a value it cannot produce (out of range, not calibrated) as `null`, so
+ * its schemas say `{ "type": ["number", "null"] }`. The field is still a number; a `null` is a
+ * gap in the data. A type that stays ambiguous after that (`["object", "boolean"]`) is not
+ * something a message definition can express, and is left out.
+ */
+export function schemaType(fieldSchema: JsonSchema): string | undefined {
+  const type = fieldSchema.type;
+  if (typeof type === "string") {
+    return type === "null" ? undefined : type;
   }
-  const schema = endpoint.payload_schema;
-  if (schema != undefined && schema != null) {
-    return schema;
-  }
-  const alt = (endpoint as unknown as Record<string, unknown>).payloadSchema;
-  if (typeof alt === "object" && alt != null) {
-    return alt as JsonSchema;
-  }
-  return undefined;
-}
-
-export function extractChannelOutputPayloadSchema(
-  serviceId: string,
-  channelId: string,
-  channel: LynxChannelAbout,
-): JsonSchema | undefined {
-  const endpoints = channel.endpoints;
-  if (!endpoints) {
-    return undefined;
-  }
-
-  const fullKey = `${serviceId}/${channelId}/<`;
-  const direct = readEndpointPayloadSchema(endpoints[fullKey]);
-  if (direct != undefined) {
-    return direct;
-  }
-
-  const short = readEndpointPayloadSchema(endpoints["<"]);
-  if (short != undefined) {
-    return short;
-  }
-
-  for (const [key, endpoint] of Object.entries(endpoints)) {
-    if (key.endsWith("/<")) {
-      const schema = readEndpointPayloadSchema(endpoint);
-      if (schema != undefined) {
-        return schema;
-      }
+  if (Array.isArray(type)) {
+    const concrete = type.filter((t): t is string => typeof t === "string" && t !== "null");
+    const unique = [...new Set(concrete)];
+    if (unique.length === 1) {
+      return unique[0];
+    }
+    // integer and number together are just a number.
+    if (unique.length === 2 && unique.includes("integer") && unique.includes("number")) {
+      return "number";
     }
   }
-
   return undefined;
 }
 
@@ -157,7 +136,7 @@ function convertField(
   parentTypeName: string,
   nested: Map<string, OptionalMessageDefinition>,
 ): MessageDefinitionField | undefined {
-  const fieldType = fieldSchema.type;
+  const fieldType = schemaType(fieldSchema);
 
   if (fieldType === "boolean") {
     return { name: fieldName, type: "bool" };
@@ -182,7 +161,7 @@ function convertField(
     if (!items) {
       return undefined;
     }
-    const itemType = items.type;
+    const itemType = schemaType(items);
     if (itemType === "boolean") {
       return { name: fieldName, type: "bool", isArray: true };
     }

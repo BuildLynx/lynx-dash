@@ -9,17 +9,19 @@ import {
 } from "@lichtblick/suite-base/components/LynxMessagesSidebar/lynxMessagesUtils";
 import { lynxRuntimeStore, type LynxMessagesPrefill } from "@lichtblick/suite-base/lynx/lynxRuntimeStore";
 import type { LynxEndpointAbout } from "@lichtblick/suite-base/lynx/types";
+/** The topic prefix of the selected component or Channel: what the Messages tab calls its "Component". */
 export function targetFromSelectedItem(item: SelectedNetworkItem): string | undefined {
   if (item == undefined) {
     return undefined;
   }
   switch (item.kind) {
-    case "service":
-      return item.serviceId;
-    case "channel":
-      return `${item.serviceId}/${item.channelId}`;
-    case "node":
-      return item.nodeId;
+    case "component":
+    case "unsupported":
+      return item.path;
+    case "channel": {
+      const channel = lynxRuntimeStore.getState().network.components[item.servicePath]?.channels[item.channelKey];
+      return channel?.base ?? `${item.servicePath}/${item.channelKey}`;
+    }
   }
 }
 
