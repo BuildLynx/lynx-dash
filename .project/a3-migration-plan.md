@@ -14,6 +14,11 @@ Phases 6 (Playwright e2e in the repo) and 7 (Docker/deploy) are not done. Plan w
 - **Verified live (headless Edge against `ws://localhost:9001`):** 15 `slicesCore` Channels and the Node listed, `LynxBucket` shown as unsupported; Start stream from the UI sent `{sampleInterval:0.25}`, the Service announced `status.command`, the row showed streaming, data arrived, Stop returned it to idle; a Raw Messages panel on a Channel topic auto-started a stream and showed real values with real unix receive times.
 - **Tests:** 112 in `src/lynx` (network view incl. real captured Abouts in `__fixtures__/live-about.json`, hub sharing/take-over/restart/pause, settings, form, identity, converter). Hub, settings, network and SDK code were mutation-tested.
 
+### Phases 6-7 (2026-09-30)
+
+- **Phase 6:** `e2e/tests/web/lynx.web.spec.ts` (opt-in: `LYNX_E2E_BROKER=ws://... yarn test:e2e:web`, optional `LYNX_E2E_CHANNEL`, `LYNX_E2E_URL`). Lints clean. **Not yet run**: the broker went quiet (see below), and the repo's e2e config starts its own server on 8080, which the existing `lynx-dash-app` container occupies.
+- **Phase 7:** the Dockerfile now builds the SDK in the image (`npm ci && npm run build`) instead of copying whatever `dist/` is on disk, and `Dockerfile.dockerignore` skips the SDK's `.venv`, `.git` and `dist`. A test build (`docker build -t lynx-dash:a3-test`) got through `yarn install` and the SDK build and into the webpack production step, then the Docker engine crashed and restarted every container. **The image has not been built to completion.** Do not retry unattended.
+
 ### Known gaps and follow-ups
 
 - Not run yet: Playwright e2e in the repo; Docker build (the SDK is outside the repo, so `portal:` needs it in the build context, same as the old `file:`); `wss` deployments.

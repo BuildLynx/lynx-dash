@@ -3,6 +3,8 @@ FROM node:22 AS build
 WORKDIR /src
 COPY Services/lynx-dash/ ./
 COPY lynx-sdk-typescript/ /lynx-sdk-typescript/
+# The dash links the SDK (portal:), so it must be built here rather than taken from a local dist/
+RUN cd /lynx-sdk-typescript && npm ci && npm run build
 
 RUN corepack enable
 RUN yarn install

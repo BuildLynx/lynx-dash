@@ -4,3 +4,6 @@ Services/lynx-dash/dist/
 Services/lynx-dash/*.log
 Services/lynx-dash/*.tsbuildinfo
 lynx-sdk-typescript/node_modules/
+lynx-sdk-typescript/dist/
+lynx-sdk-typescript/.venv/
+lynx-sdk-typescript/.git/
